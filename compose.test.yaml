@@ -1,0 +1,14 @@
+# Banco e volume isolados pelo projeto camarao-gestao-test.
+# Use somente com -p e um nome separado de projeto de teste (veja README).
+services:
+  mysql:
+    environment:
+      MYSQL_DATABASE: camarao_test
+  backend:
+    environment:
+      DB_NAME: camarao_test
+    ports: !override
+      - '127.0.0.1:18080:8080'
+  frontend:
+    ports: !override
+      - '127.0.0.1:15173:80'

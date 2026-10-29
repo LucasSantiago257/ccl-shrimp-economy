@@ -1,0 +1,5 @@
+# Opcional: publica o banco somente no computador local para executar Java fora do Docker.
+services:
+  mysql:
+    ports:
+      - '127.0.0.1:3307:3306'

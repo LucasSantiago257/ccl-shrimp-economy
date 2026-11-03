@@ -46,7 +46,7 @@ Para parar sem apagar o banco:
 6. Em Financeiro → A receber, registre os pagamentos posteriores; também é possível pelo extrato do cliente.
 7. Registre despesas operacionais e perdas de produto.
 8. Consulte Fechamento por período e exporte CSV ou imprima.
-9. Ao encerrar o dia, use **Fechar dia de hoje**. Para outras datas, escolha o intervalo e use **Fechar intervalo selecionado**. Confira os dados e confirme o bloqueio definitivo.
+9. O dia fecha automaticamente às **23h59, no horário da Bahia**. Para encerrar antes, use **Fechar dia de hoje**. Para outras datas, escolha o intervalo e use **Fechar intervalo selecionado**. No fechamento manual, confira os dados e confirme o bloqueio definitivo.
 
 O painel apresenta os totais de **Vendas a receber** e **Compras a pagar**, além de até cinco pendências por categoria. Compras a pagar não incluem despesas operacionais. Compras sem fornecedor são identificadas pelo número da compra, inclusive no financeiro.
 
@@ -68,6 +68,8 @@ A tela dos snapshots pagina os registros preservados para leitura; o download JS
 
 ## Fechamento e snapshots
 
+- Todos os dias, às **23h59 (America/Bahia)**, o servidor bloqueia novos lançamentos e preserva um snapshot identificado por **Sistema (automático)**, sem depender de navegador aberto ou comando do usuário. À meia-noite, o novo dia fica disponível.
+- O serviço precisa estar em execução para fechar no horário. Se estiver desligado, os dias pendentes desde a ativação da automação são recuperados ao reiniciar, inclusive dias sem movimento. A captura registra o horário real da recuperação. Fechamentos manuais existentes são preservados e não são duplicados.
 - O fechamento preserva intervalo, responsável, data/hora, fuso America/Bahia, observação, indicadores, estoque e registros detalhados: documentos, itens, movimentos, pagamentos, alocações e contas.
 - Todas as compras, vendas, despesas, perdas, recebimentos e pagamentos nas datas fechadas ficam bloqueados, inclusive por requisições diretas à API ou outros acessos à mesma empresa.
 - O fechamento e os lançamentos compartilham um bloqueio transacional. Uma operação concorrente entra inteira no snapshot se confirmar antes; se chegar depois, é recusada. O próximo dia fora do intervalo fechado fica aberto automaticamente.
@@ -77,6 +79,8 @@ A tela dos snapshots pagina os registros preservados para leitura; o download JS
 - O snapshot é um registro interno de conferência e arquivo. Não é emissão de nota fiscal, assinatura digital ou carimbo de tempo certificado. Preserve backups e o arquivo original com seu hash.
 
 O Compose habilita `log_bin_trust_function_creators=1` no MySQL do projeto para o Flyway criar os triggers sem conceder SUPER à aplicação. Um MySQL externo precisa permitir a criação desses triggers ao usuário de migração.
+
+Para testar especificamente a automação com relógio controlado, Java 21, Maven e Docker Desktop, execute `./scripts/Test-AutomaticClosing.ps1`. O script cria um MySQL de teste novo na porta 13307, simula o horário de corte, recuperação e concorrência, encerra os contêineres e preserva o volume de teste. Ele não usa a base operacional. O teste é optativo e fica desabilitado no build normal; a automação do sistema fica habilitada por padrão.
 
 Vendas e compras confirmadas preservam o histórico. Esta versão ainda não oferece cancelamento, devolução ou edição desses documentos; use somente dados de avaliação até validar a operação e concluir esses fluxos.
 

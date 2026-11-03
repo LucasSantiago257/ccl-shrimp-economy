@@ -36,7 +36,8 @@ public class ClosingService {
                 .switchIfEmpty(Mono.defer(() -> capture(period,actor,now)));
         }));
     }
-    private Mono<Long> capture(ClosePeriod period,String actor,LocalDateTime now) {
+    // Caller holds the business guard in the same transaction, including automatic closings.
+    Mono<Long> capture(ClosePeriod period,String actor,LocalDateTime now) {
         return reports.report(period.from(),period.to()).flatMap(report -> records(period).flatMap(records -> {
             var snapshot=new LinkedHashMap<String,Object>();
             snapshot.put("schemaVersion",2); snapshot.put("from",period.from()); snapshot.put("to",period.to());
@@ -75,10 +76,12 @@ public class ClosingService {
             "date_to DESC,id DESC",Map.of("q",page.like()),page);
     }
     public Mono<Map<String,Object>> status() {
-        var day=Rules.today();
+        return Mono.defer(() -> {
+        var now=periods.now(); var day=ClosingSchedule.day(now);
         return sql.one("SELECT id,date_from,date_to,closed_by FROM period_closures WHERE date_from<=:day AND date_to>=:day LIMIT 1",Map.of("day",day))
             .map(row -> Map.<String,Object>of("date",day,"closed",true,"closureId",row.get("id"),"from",row.get("date_from"),"to",row.get("date_to"),"closedBy",row.get("closed_by")))
-            .defaultIfEmpty(Map.of("date",day,"closed",false));
+            .defaultIfEmpty(Map.of("date",day,"closed",ClosingSchedule.reachedCutoff(now),"automaticClosingPending",ClosingSchedule.reachedCutoff(now)));
+        });
     }
     public Mono<Map<String,Object>> detail(long id) {
         return stored(id).map(row -> {

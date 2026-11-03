@@ -1,23 +1,24 @@
 # Validação
 
-Execução inicial em 28/10/2026; atualização de desconto/paginação validada em 03/11/2026, no fuso America/Bahia.
+Execução inicial em 28/10/2026; desconto, paginação e fechamento automático validados em 03/11/2026, no fuso America/Bahia.
 
 ## Resultado
 
 | Verificação | Resultado |
 |---|---|
 | Compilação Java 21 / Spring Boot 3.5.16 | Aprovada |
-| Testes unitários de custo, desconto, paginação e hash | 15 aprovados, 0 falhas, 0 ignorados |
+| Testes unitários de custo, desconto, paginação, hash e fechamento automático | 22 aprovados, 0 falhas; integração optativa separada do build normal |
+| Integração do fechamento automático com MySQL real e relógio controlado | 1 teste de ciclo completo aprovado |
 | Compilação TypeScript e build Vite | Aprovados |
 | Build dos containers Java e Nginx | Aprovado |
-| Migrações Flyway 11.20.3 em MySQL 8.4 | V1, V2 e V3 aplicadas com sucesso |
+| Migrações Flyway 11.20.3 em MySQL 8.4 | V1, V2, V3 e V4 aplicadas com sucesso |
 | Integração HTTP com MySQL real | 24 de regressão + 17 de desconto/paginação + 13 de fechamento aprovadas |
 | Teste no navegador Microsoft Edge | Aprovado |
 | Nove telas em viewport de 390 × 844 | Sem overflow horizontal da página |
 | Formulário de venda em celular | Exibido e conferido visualmente |
 | Erros JavaScript durante o fluxo de navegador | Nenhum |
 | Credenciais/tokens no localStorage | Nenhum |
-| Ambiente final em localhost:5173 | Login 204; 1 produto inicial, estoque zero, nenhuma venda ou cliente fictício |
+| Ambiente operacional em localhost:5173 | Preservado; massas fictícias criadas exclusivamente nos ambientes isolados de teste |
 
 ## Integração validada
 
@@ -93,3 +94,13 @@ O teste de navegador `tests/discount-pagination.browser.mjs` validou última pá
 A regressão de fechamento também verificou os campos de desconto, o snapshot completo com mais de 500 títulos e a paginação da lista de fechamentos. O JSON preservado continua completo e seu SHA-256 foi conferido após o fechamento. As capturas são locais e não são versionadas.
 
 Também foi migrado um volume antigo de teste de V2 para V3: três snapshots do formato 1 mantiveram seus hashes e cinco vendas antigas mantiveram seus totais, com desconto zero. Esse teste foi somente de leitura após a migração e não alterou os snapshots.
+
+## Fechamento automático — 03/11/2026
+
+O build normal aprovou 22 testes unitários. As novas verificações cobrem 23h58min59s, o corte exato de 23h59 em America/Bahia (02h59 UTC do dia seguinte), o último segundo do dia, liberação à meia-noite, bloqueio sem snapshot pronto e nova assinatura do agendador após falha. O teste de banco optativo não roda no build comum.
+
+`AutomaticClosingDatabaseTest` executou o fluxo real de serviços, transações R2DBC, migrações e MySQL em uma base nova e isolada. Um relógio injetável simulou os horários, sem mudar o relógio do computador. Foram conferidos: ausência de fechamento antecipado, status pendente e bloqueio de despesa às 23h59, quatro execuções simultâneas com um único snapshot, preservação de fechamento manual, recuperação de três dias sem movimento, repetição sem duplicação, concorrência manual/automática e integridade SHA-256.
+
+Uma falha foi provocada depois da inserção do snapshot, durante o avanço do cursor: a transação reverteu os dois registros e a tentativa seguinte concluiu normalmente. Os triggers de falha existiram somente no banco de teste e foram removidos no próprio teste. `scripts/Test-AutomaticClosing.ps1` reproduz o cenário com um novo projeto Docker e preserva somente seu volume ao encerrar.
+
+Na aplicação de teste, os 24 cenários gerais, 17 de desconto/paginação e 13 de fechamento voltaram a passar. O navegador também aprovou confirmação manual, banner de dia fechado, snapshot e download com hash correto, visualização móvel e bloqueio dos lançamentos. A configuração de produção agenda o corte sem depender de navegador ou sessão de usuário; as capturas automáticas usam o autor `Sistema (automático)`.

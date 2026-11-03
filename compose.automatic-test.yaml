@@ -1,0 +1,7 @@
+# Only for the opt-in AutomaticClosingDatabaseTest. Start mysql alone with a new -p.
+services:
+  mysql:
+    environment:
+      MYSQL_DATABASE: camarao_test
+    ports:
+      - '127.0.0.1:13307:3306'

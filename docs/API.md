@@ -98,7 +98,7 @@ GET `/reports/result?from=2026-10-01&to=2026-10-31`: `metrics` com subtotal das 
 ## Fechamentos
 
 - GET `/closings`: metadados paginados e pesquisáveis dos fechamentos, sem recalcular snapshots.
-- GET `/closings/status`: data operacional atual, indicador `closed` e ID do fechamento quando o dia estiver bloqueado.
+- GET `/closings/status`: data operacional atual, indicador `closed` e ID do fechamento quando o snapshot já estiver preservado. A partir das 23h59 (America/Bahia), retorna `closed=true` mesmo se a captura ainda estiver pendente; nesse caso, informa `automaticClosingPending=true` sem `closureId`.
 - POST `/closings`, com CSRF e `Idempotency-Key`:
 
 ```json
@@ -106,6 +106,8 @@ GET `/reports/result?from=2026-10-01&to=2026-10-31`: `metrics` com subtotal das 
 ```
 
 Datas são inclusivas no fuso America/Bahia. Pode fechar hoje ou datas anteriores, por até dez anos, desde que não haja sobreposição. Fechar hoje impede novos lançamentos no mesmo dia para toda a empresa. Amanhã, se não estiver fechado, volta a ser possível lançar. Não existe reabertura.
+
+O servidor fecha cada dia automaticamente às 23h59 nesse fuso, com autor `Sistema (automático)`. Nenhum comando HTTP é necessário. Novos lançamentos são recusados a partir desse horário, independentemente do progresso da captura. Após reiniciar, o servidor recupera dias pendentes desde a ativação; fechamentos manuais existentes são mantidos. A API de fechamento manual continua disponível para antecipar o encerramento ou fechar outros intervalos.
 
 - GET `/closings/{id}`: `{metadata,snapshot}`. Inclui intervalo, autor, horário, versão, SHA-256 e conteúdo congelado (relatório e registros).
 - GET `/closings/{id}/snapshot`: download do JSON original, com `Content-Disposition: attachment`. O SHA-256 é calculado sobre os bytes UTF-8 desse arquivo e pode ser comparado ao metadado `snapshot_sha256`.

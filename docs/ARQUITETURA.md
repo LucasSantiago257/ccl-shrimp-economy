@@ -40,6 +40,14 @@ Não há reabertura, edição ou exclusão de snapshots. Triggers rejeitam UPDAT
 
 Fechar um período anterior não bloqueia o dia seguinte fora dele. Repetir uma requisição idempotente já concluída retorna o mesmo ID mesmo após fechar; isso não cria outro lançamento. Cadastros continuam editáveis porque o snapshot já contém seus valores copiados.
 
+`AutomaticClosingScheduler` agenda `23:59:00` em America/Bahia e faz uma verificação adicional ao iniciar e a cada 60 segundos para recuperação de falhas. O publisher é reativo e adiado; cada assinatura lê horário e banco novamente. Referência: [agendamento reativo do Spring](https://docs.spring.io/spring-framework/reference/integration/scheduling.html).
+
+A V4 cria `automatic_closing_state.next_date`, inicializado no primeiro dia em que a automação executar. O cursor evita criar fechamentos retroativos anteriores à ativação. Cada dia pendente é processado em uma transação própria: adquire o mesmo `business_guard`, preserva o snapshot com o autor `Sistema (automático)` e avança o cursor. Se a transação falhar, nenhum dos dois é confirmado. Dias já cobertos por um fechamento manual são pulados sem alterar seus bytes. O bloqueio compartilhado também impede duplicação entre execuções simultâneas ou múltiplas instâncias.
+
+`PeriodGuard` recusa novos lançamentos a partir das 23h59 mesmo se o agendador estiver atrasado ou a captura ainda não tiver confirmado. Na virada do dia, volta a admitir lançamentos na nova data. `Clock` injetável fornece o horário UTC, convertido para America/Bahia tanto no agendamento quanto no bloqueio e no status. O status informa `automaticClosingPending=true` entre o corte e a preservação do snapshot; a interface mostra esse estado e atualiza a lista de fechamentos a cada minuto.
+
+Quando o servidor ficar desligado, o processamento dos dias pendentes retoma pelo cursor persistido. Dias sem movimento também geram snapshots; `closed_at` registra o instante real da captura, sem simular execução passada. Não há dependência de navegador, sessão de usuário ou chamada HTTP para acionar a automação.
+
 ## Consistência
 
 - Cada comando operacional é uma transação reativa no MySQL. Não há `block()`, `subscribe()` manual ou JDBC no caminho das requisições.

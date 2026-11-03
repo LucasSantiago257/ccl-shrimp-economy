@@ -73,19 +73,21 @@ public class FinanceService {
                     .flatMap(title -> expense.paidAmount().signum()==0 ? Mono.just(id) : settle(List.of(new Allocation(title,expense.paidAmount())),expense.method(),now,actor).thenReturn(id)));
         }));
     }
-    public Flux<Map<String,Object>> titles(String nature,long customerId,boolean openOnly,boolean purchasesOnly) {
+    public Mono<PageResult> titles(String nature,long customerId,boolean openOnly,boolean purchasesOnly,PageQuery page) {
         Rules.require(nature.equals("RECEIVABLE")||nature.equals("PAYABLE"),"Natureza financeira inválida.");
-        return sql.all("SELECT t.*,COALESCE(c.name,s.name,e.description,CONCAT('Compra #',t.purchase_id,' · fornecedor não informado')) AS party_name,COALESCE(a.paid,0) AS paid,t.amount-COALESCE(a.paid,0) AS outstanding "
+        return sql.page("SELECT t.*,COALESCE(c.name,s.name,e.description,CONCAT('Compra #',t.purchase_id,' · fornecedor não informado')) AS party_name,COALESCE(a.paid,0) AS paid,t.amount-COALESCE(a.paid,0) AS outstanding "
             +"FROM financial_titles t LEFT JOIN customers c ON c.id=t.customer_id LEFT JOIN suppliers s ON s.id=t.supplier_id LEFT JOIN expenses e ON e.id=t.expense_id "
             +"LEFT JOIN (SELECT title_id,SUM(amount) paid FROM settlement_allocations GROUP BY title_id) a ON a.title_id=t.id "
-            +"WHERE t.nature=:nature AND (:customer=0 OR t.customer_id=:customer) AND (:openOnly=0 OR t.amount>COALESCE(a.paid,0)) AND (:purchasesOnly=0 OR t.purchase_id IS NOT NULL) ORDER BY t.due_date,t.id LIMIT 500",Map.of("nature",nature,"customer",customerId,"openOnly",openOnly?1:0,"purchasesOnly",purchasesOnly?1:0));
+            +"WHERE t.nature=:nature AND (:customer=0 OR t.customer_id=:customer) AND (:openOnly=0 OR t.amount>COALESCE(a.paid,0)) AND (:purchasesOnly=0 OR t.purchase_id IS NOT NULL) AND (COALESCE(c.name,s.name,e.description,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(t.id AS CHAR) LIKE :q ESCAPE '!' OR CAST(COALESCE(t.sale_id,t.purchase_id,t.expense_id) AS CHAR) LIKE :q ESCAPE '!')",
+            "t.due_date,t.id",Map.of("nature",nature,"customer",customerId,"openOnly",openOnly?1:0,"purchasesOnly",purchasesOnly?1:0,"q",page.like()),page,"amount","paid","outstanding");
     }
-    public Flux<Map<String,Object>> settlements(long customerId) {
-        return sql.all("SELECT s.*,GROUP_CONCAT(CONCAT('#',a.title_id,': ',a.amount) ORDER BY a.title_id SEPARATOR '; ') AS allocations "
+    public Mono<PageResult> settlements(long customerId,PageQuery page) {
+        return sql.page("SELECT s.*,GROUP_CONCAT(CONCAT('#',a.title_id,': ',a.amount) ORDER BY a.title_id SEPARATOR '; ') AS allocations "
             +"FROM settlements s JOIN settlement_allocations a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id "
-            +"WHERE (:customer=0 OR t.customer_id=:customer) GROUP BY s.id ORDER BY s.id DESC LIMIT 200",Map.of("customer",customerId));
+            +"WHERE (:customer=0 OR t.customer_id=:customer) AND (CAST(s.id AS CHAR) LIKE :q ESCAPE '!' OR EXISTS(SELECT 1 FROM settlement_allocations ax JOIN financial_titles tx ON tx.id=ax.title_id LEFT JOIN customers c ON c.id=tx.customer_id LEFT JOIN suppliers p ON p.id=tx.supplier_id LEFT JOIN expenses e ON e.id=tx.expense_id WHERE ax.settlement_id=s.id AND (COALESCE(c.name,p.name,e.description,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(tx.id AS CHAR) LIKE :q ESCAPE '!'))) GROUP BY s.id",
+            "s.id DESC",Map.of("customer",customerId,"q",page.like()),page);
     }
-    public Flux<Map<String,Object>> expenses() {
-        return sql.all("SELECT * FROM expenses ORDER BY id DESC LIMIT 200",Map.of());
+    public Mono<PageResult> expenses(PageQuery page) {
+        return sql.page("SELECT * FROM expenses WHERE description LIKE :q ESCAPE '!' OR category LIKE :q ESCAPE '!' OR CAST(id AS CHAR) LIKE :q ESCAPE '!'","id DESC",Map.of("q",page.like()),page,"total");
     }
 }

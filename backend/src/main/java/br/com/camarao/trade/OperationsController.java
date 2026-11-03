@@ -3,6 +3,7 @@ package br.com.camarao.trade;
 import br.com.camarao.finance.FinanceService;
 import br.com.camarao.report.ReportService;
 import br.com.camarao.stock.StockOperations;
+import br.com.camarao.shared.*;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.time.LocalDate;
@@ -21,8 +22,8 @@ public class OperationsController {
     public OperationsController(TradeService trade,FinanceService finance,StockOperations stock,ReportService reports) {
         this.trade=trade;this.finance=finance;this.stock=stock;this.reports=reports;
     }
-    @GetMapping("/sales") public Flux<Map<String,Object>> sales() { return trade.list(true); }
-    @GetMapping("/purchases") public Flux<Map<String,Object>> purchases() { return trade.list(false); }
+    @GetMapping("/sales") public Mono<PageResult> sales(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return trade.list(true,new PageQuery(page,size,q)); }
+    @GetMapping("/purchases") public Mono<PageResult> purchases(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return trade.list(false,new PageQuery(page,size,q)); }
     @GetMapping("/sales/{id}/items") public Flux<Map<String,Object>> saleItems(@PathVariable long id) { return trade.items(true,id); }
     @GetMapping("/purchases/{id}/items") public Flux<Map<String,Object>> purchaseItems(@PathVariable long id) { return trade.items(false,id); }
     @PostMapping("/sales") public Mono<Map<String,Long>> sale(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody TradeService.Trade body,Principal actor) {
@@ -31,16 +32,16 @@ public class OperationsController {
     @PostMapping("/purchases") public Mono<Map<String,Long>> purchase(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody TradeService.Trade body,Principal actor) {
         return trade.confirm(false,key,body,actor.getName());
     }
-    @GetMapping("/titles") public Flux<Map<String,Object>> titles(@RequestParam(defaultValue="RECEIVABLE") String nature,@RequestParam(defaultValue="0") long customerId,@RequestParam(defaultValue="false") boolean openOnly,@RequestParam(defaultValue="false") boolean purchasesOnly) { return finance.titles(nature,customerId,openOnly,purchasesOnly); }
-    @GetMapping("/settlements") public Flux<Map<String,Object>> settlements(@RequestParam(defaultValue="0") long customerId) { return finance.settlements(customerId); }
+    @GetMapping("/titles") public Mono<PageResult> titles(@RequestParam(defaultValue="RECEIVABLE") String nature,@RequestParam(defaultValue="0") long customerId,@RequestParam(defaultValue="false") boolean openOnly,@RequestParam(defaultValue="false") boolean purchasesOnly,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return finance.titles(nature,customerId,openOnly,purchasesOnly,new PageQuery(page,size,q)); }
+    @GetMapping("/settlements") public Mono<PageResult> settlements(@RequestParam(defaultValue="0") long customerId,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return finance.settlements(customerId,new PageQuery(page,size,q)); }
     @PostMapping("/settlements") public Mono<Map<String,Long>> settlement(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody FinanceService.Payment payment,Principal actor) {
         return finance.payment(key,payment,actor.getName());
     }
-    @GetMapping("/expenses") public Flux<Map<String,Object>> expenses() { return finance.expenses(); }
+    @GetMapping("/expenses") public Mono<PageResult> expenses(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return finance.expenses(new PageQuery(page,size,q)); }
     @PostMapping("/expenses") public Mono<Map<String,Long>> expense(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody FinanceService.Expense expense,Principal actor) {
         return finance.expense(key,expense,actor.getName());
     }
-    @GetMapping("/stock/movements") public Flux<Map<String,Object>> movements(@RequestParam(defaultValue="0") long productId) { return stock.movements(productId); }
+    @GetMapping("/stock/movements") public Mono<PageResult> movements(@RequestParam(defaultValue="0") long productId,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return stock.movements(productId,new PageQuery(page,size,q)); }
     @PostMapping("/stock/losses") public Mono<Map<String,Long>> loss(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody StockOperations.Loss loss,Principal actor) {
         return stock.loss(key,loss,actor.getName());
     }

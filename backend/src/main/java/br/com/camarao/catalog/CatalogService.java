@@ -19,11 +19,12 @@ public class CatalogService {
     private final Sql sql;
     public CatalogService(Sql sql) { this.sql = sql; }
     private String table(boolean customer) { return customer ? "customers" : "suppliers"; }
-    public Flux<Map<String,Object>> partners(boolean customer, String q) {
+    public Mono<PageResult> partners(boolean customer,PageQuery page,boolean activeOnly) {
         String field = customer ? "customer_id" : "supplier_id";
-        return sql.all("SELECT p.*, COALESCE((SELECT SUM(t.amount-COALESCE(a.paid,0)) FROM financial_titles t "
+        return sql.page("SELECT p.*, COALESCE((SELECT SUM(t.amount-COALESCE(a.paid,0)) FROM financial_titles t "
             + "LEFT JOIN (SELECT title_id,SUM(amount) paid FROM settlement_allocations GROUP BY title_id) a ON a.title_id=t.id "
-            + "WHERE t."+field+"=p.id),0) AS balance FROM "+table(customer)+" p WHERE p.name LIKE :q ORDER BY p.name LIMIT 200",Map.of("q","%"+q+"%"));
+            + "WHERE t."+field+"=p.id),0) AS balance FROM "+table(customer)+" p WHERE (:active=0 OR p.active=TRUE) AND (p.name LIKE :q ESCAPE '!' OR p.phone LIKE :q ESCAPE '!' OR p.document LIKE :q ESCAPE '!')",
+            "p.name,p.id",Map.of("q",page.like(),"active",activeOnly?1:0),page,"balance");
     }
     @Transactional
     public Mono<Map<String,Long>> createPartner(boolean customer, Partner p) {
@@ -42,8 +43,9 @@ public class CatalogService {
     private Map<String,Object> partnerParams(Partner p) {
         return Map.of("name",p.name().trim(),"phone",p.phone().trim(),"document",p.document().trim(),"notes",p.notes().trim(),"active",p.active());
     }
-    public Flux<Map<String,Object>> products() {
-        return sql.all("SELECT p.*,s.quantity,s.stock_value,s.average_cost FROM products p JOIN stock_balances s ON s.product_id=p.id ORDER BY p.name LIMIT 200",Map.of());
+    public Mono<PageResult> products(PageQuery page,boolean activeOnly,boolean inStockOnly) {
+        return sql.page("SELECT p.*,s.quantity,s.stock_value,s.average_cost FROM products p JOIN stock_balances s ON s.product_id=p.id WHERE (:active=0 OR p.active=TRUE) AND (:stock=0 OR s.quantity>0) AND (p.name LIKE :q ESCAPE '!' OR p.code LIKE :q ESCAPE '!')",
+            "p.name,p.id",Map.of("q",page.like(),"active",activeOnly?1:0,"stock",inStockOnly?1:0),page,"quantity","stock_value");
     }
     @Transactional
     public Mono<Map<String,Long>> createProduct(Product p) {

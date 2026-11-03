@@ -41,7 +41,7 @@ Para parar sem apagar o banco:
 1. Cadastre um cliente. O fornecedor é opcional nas compras.
 2. Em Produtos, ajuste o preço sugerido do Camarão ou cadastre outro produto.
 3. Registre uma compra em Compras. Confirmar significa que os quilos foram recebidos.
-4. Registre uma venda. Confirmar significa que houve entrega e baixa do estoque.
+4. Registre uma venda e, se necessário, informe **Desconto (R$)**. A tela mostra subtotal e total após o desconto. Confirmar significa que houve entrega e baixa do estoque.
 5. Escolha receber tudo, uma parte ou vender fiado.
 6. Em Financeiro → A receber, registre os pagamentos posteriores; também é possível pelo extrato do cliente.
 7. Registre despesas operacionais e perdas de produto.
@@ -49,6 +49,22 @@ Para parar sem apagar o banco:
 9. Ao encerrar o dia, use **Fechar dia de hoje**. Para outras datas, escolha o intervalo e use **Fechar intervalo selecionado**. Confira os dados e confirme o bloqueio definitivo.
 
 O painel apresenta os totais de **Vendas a receber** e **Compras a pagar**, além de até cinco pendências por categoria. Compras a pagar não incluem despesas operacionais. Compras sem fornecedor são identificadas pelo número da compra, inclusive no financeiro.
+
+## Desconto na venda
+
+O desconto é um valor em reais por documento, de zero até o subtotal dos itens. O total líquido determina a receita, a cobrança e o valor recebido; o custo dos quilos vendidos permanece preservado. Exemplo: subtotal de R$ 500, desconto de R$ 50 e entrada de R$ 200 geram uma venda líquida de R$ 450 e dívida de R$ 250.
+
+Desconto de 100% confirma a saída e registra seu custo sem criar cobrança ou recebimento de valor zero. Desconto acima do subtotal, negativo ou com frações de centavo é rejeitado. Compras não recebem desconto por documento nesta versão.
+
+Os relatórios e novos snapshots mostram subtotal das vendas, descontos e receita líquida. Vendas antigas mantêm seus totais com desconto zero; snapshots já fechados preservam seus bytes e hash originais.
+
+## Paginação e busca
+
+Clientes, fornecedores, produtos, compras, vendas, despesas, movimentos, contas, pagamentos e fechamentos possuem busca no servidor e controles de primeira/anterior/próxima/última página. É possível escolher 10, 20, 50 ou 100 registros por página. A busca ou mudança de tamanho retorna à primeira página. Não há corte no total de registros acessíveis.
+
+Os seletores de cliente, fornecedor e produto dos formulários também permitem pesquisar e navegar por páginas. Os saldos do extrato e os indicadores consideram todos os registros correspondentes, independentemente da página visível. O painel mantém suas prévias de cinco pendências e produtos, com acesso às listas completas.
+
+A tela dos snapshots pagina os registros preservados para leitura; o download JSON continua completo. O estoque do relatório é paginado na tela e integral na impressão.
 
 ## Fechamento e snapshots
 
@@ -143,6 +159,8 @@ docker compose -p $testProject -f compose.yaml -f compose.test.yaml up -d --buil
 # Aguarde o back-end iniciar; consulte os logs se necessário.
 node scripts/integration.mjs
 # Opcional: execute tests/browser.mjs agora, antes de fechar o dia.
+node scripts/discount-pagination-integration.mjs
+# Opcional: execute tests/discount-pagination.browser.mjs após a massa acima.
 node scripts/closing-integration.mjs
 # Opcional: execute tests/closing.browser.mjs após fechar o dia.
 docker compose -p $testProject -f compose.yaml -f compose.test.yaml down
@@ -156,6 +174,8 @@ Teste de navegador no Windows com Microsoft Edge instalado, após o teste HTTP e
 cd tests
 npm ci
 node browser.mjs
+# Após scripts/discount-pagination-integration.mjs e antes de fechar o dia:
+node discount-pagination.browser.mjs
 # Após executar scripts/closing-integration.mjs:
 node closing.browser.mjs
 ```
@@ -167,11 +187,9 @@ O navegador de teste é separado do seu perfil pessoal. O primeiro teste valida 
 - Um administrador configurado por ambiente; cadastro de usuários e permissões distintas ainda pendente.
 - Uma conta financeira operacional; sem saldo inicial, aportes, retiradas ou conciliação bancária. O relatório identifica o saldo como saldo dos lançamentos registrados.
 - Datas operacionais são as do registro, em UTC, com relatório por dia no fuso America/Bahia; sem lançamentos retroativos nesta versão.
-- Sem descontos explícitos por documento: é possível negociar o preço/kg do item.
 - Sem rascunhos, pedidos futuros, reserva, cancelamentos, devoluções, juros, crédito antecipado, emissão fiscal ou integração de pagamento.
 - Sem reabertura de períodos fechados; correções futuras precisarão de ajustes auditados que preservem os snapshots existentes.
 - Sem lotes/validade e sem frete de aquisição rateado. O custo considera os totais arredondados dos itens comprados. Registre despesas operacionais separadamente, evitando contar um mesmo gasto duas vezes.
-- Listas com limites visíveis (200 cadastros/documentos, 300 movimentos, 500 títulos). Paginação e busca no servidor são a próxima evolução antes de grandes volumes.
 - Ambiente de desenvolvimento local. Acesso por celular físico em rede e publicação exigem configuração de rede, HTTPS, cookies Secure e revisão operacional; não basta expor o MySQL.
 
 Veja [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e [Validação](docs/VALIDACAO.md).

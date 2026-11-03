@@ -19,6 +19,8 @@ public class ReportService {
         var start=Rules.start(from); var end=Rules.start(to.plusDays(1));
         String query="""
             SELECT
+              (SELECT COALESCE(SUM(gross_total),0) FROM sales WHERE occurred_at>=:from AND occurred_at<:to) AS gross_revenue,
+              (SELECT COALESCE(SUM(discount_amount),0) FROM sales WHERE occurred_at>=:from AND occurred_at<:to) AS discounts,
               (SELECT COALESCE(SUM(total),0) FROM sales WHERE occurred_at>=:from AND occurred_at<:to) AS revenue,
               (SELECT COALESCE(SUM(cost_total),0) FROM sales WHERE occurred_at>=:from AND occurred_at<:to) AS cost_of_goods,
               (SELECT COALESCE(SUM(total),0) FROM purchases WHERE occurred_at>=:from AND occurred_at<:to) AS purchases,

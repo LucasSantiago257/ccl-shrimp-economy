@@ -1,17 +1,17 @@
-# Validação da primeira versão
+# Validação
 
-Realizada em 28/10/2026, no fuso America/Bahia.
+Execução inicial em 28/10/2026; atualização de desconto/paginação validada em 03/11/2026, no fuso America/Bahia.
 
 ## Resultado
 
 | Verificação | Resultado |
 |---|---|
 | Compilação Java 21 / Spring Boot 3.5.16 | Aprovada |
-| Testes unitários de custo, precisão e hash | 7 aprovados, 0 falhas, 0 ignorados |
+| Testes unitários de custo, desconto, paginação e hash | 15 aprovados, 0 falhas, 0 ignorados |
 | Compilação TypeScript e build Vite | Aprovados |
 | Build dos containers Java e Nginx | Aprovado |
-| Migrações Flyway 11.20.3 em MySQL 8.4 | V1 e V2 aplicadas com sucesso |
-| Integração HTTP com MySQL real | 24 verificações originais + 13 novas aprovadas |
+| Migrações Flyway 11.20.3 em MySQL 8.4 | V1, V2 e V3 aplicadas com sucesso |
+| Integração HTTP com MySQL real | 24 de regressão + 17 de desconto/paginação + 13 de fechamento aprovadas |
 | Teste no navegador Microsoft Edge | Aprovado |
 | Nove telas em viewport de 390 × 844 | Sem overflow horizontal da página |
 | Formulário de venda em celular | Exibido e conferido visualmente |
@@ -81,3 +81,15 @@ Treze verificações adicionais em `scripts/closing-integration.mjs`:
 Também foram executados UPDATE e DELETE diretamente no MySQL de teste; ambos foram rejeitados pelos triggers de imutabilidade.
 
 No navegador, foram validados compra a prazo sem fornecedor e os dois grupos de pendências no painel. `tests/closing.browser.mjs` confirmou o fechamento de um período pela interface, confirmação explícita, banner do dia fechado, abertura do snapshot, download com hash correto, layout móvel e botão de venda desabilitado.
+
+## Desconto e paginação — 03/11/2026
+
+`scripts/discount-pagination-integration.mjs` aprovou 17 cenários: desconto parcial, quitação pelo líquido, desconto integral sem título zero, validação de limites/precisão, idempotência, páginas vazias, busca literal por curingas, telefone/documento e navegação sem duplicações ou cortes.
+
+A massa foi criada pela API real, com transações no MySQL: mais de 200 clientes/produtos/documentos/pagamentos, 411 movimentos do produto testado e 511 títulos a pagar correspondentes ao filtro. Foram percorridas todas as páginas, conferindo contagem, IDs únicos e resumos globais. Nenhuma massa foi criada na base operacional.
+
+O teste de navegador `tests/discount-pagination.browser.mjs` validou última página, busca e mudança para 50 registros por página; seleção de cliente e produto além da primeira página; venda de R$ 100 com desconto de R$ 10 e entrada de R$ 20; extrato com mais de 200 títulos, total agregado e pagamento em outra página; layout de 390px sem overflow e sem erros JavaScript.
+
+A regressão de fechamento também verificou os campos de desconto, o snapshot completo com mais de 500 títulos e a paginação da lista de fechamentos. O JSON preservado continua completo e seu SHA-256 foi conferido após o fechamento. As capturas são locais e não são versionadas.
+
+Também foi migrado um volume antigo de teste de V2 para V3: três snapshots do formato 1 mantiveram seus hashes e cinco vendas antigas mantiveram seus totais, com desconto zero. Esse teste foi somente de leitura após a migração e não alterou os snapshots.

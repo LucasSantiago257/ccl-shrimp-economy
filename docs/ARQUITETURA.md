@@ -84,7 +84,25 @@ Administrador único carregado do ambiente; senha BCrypt, sessão WebFlux, CSRF 
 
 1. Cancelamentos e devoluções, com estorno financeiro e política de recomposição/recalculo de custo; sem deletar o histórico.
 2. Ajustes posteriores auditados que preservem os períodos já fechados.
-3. Paginação e busca de cadastros/documentos/títulos no servidor.
+3. Avaliação de índices e estratégia de busca conforme o volume real de uso.
 4. Usuários, perfis e auditoria de alterações dos cadastros (os lançamentos já registram autor).
 5. Lotes e validade, saldos iniciais, aportes/retiradas e múltiplas contas.
-6. Descontos explícitos, parcelas, frete de aquisição rateado, pedidos/reservas e emissão fiscal, conforme necessidade.
+6. Parcelas, frete de aquisição rateado, pedidos/reservas e emissão fiscal, conforme necessidade.
+
+## Desconto e migração V3
+
+`sales.gross_total` preserva a soma dos subtotais dos itens, `discount_amount` é o desconto global e `total` é o líquido. A V3 preenche os documentos antigos com `gross_total=total` e desconto zero; títulos, pagamentos e snapshots anteriores não são reescritos.
+
+O servidor valida o desconto em reais/centavos, de zero ao subtotal. Títulos e pagamentos usam o líquido. CMV e valorização do estoque não recebem desconto. Itens continuam com seus subtotais brutos, sem rateio do desconto por item. Em desconto integral, o documento de total zero movimenta estoque e registra custo, sem criar título/pagamento de valor zero.
+
+`gross_revenue` e `discounts` complementam `revenue` (líquida) no relatório. Novos snapshots têm formato 2 e contêm esses indicadores e os campos de cada venda; versões anteriores continuam legíveis com o conteúdo/hash preservados.
+
+## Paginação
+
+`Sql.page` compõe contagem, agregações e consulta limitada em uma transação reativa de leitura. São usados limites e deslocamentos vinculados por parâmetros, com ordenação fixa e ID como desempate. Tamanho padrão 20, máximo 100. As buscas são parametrizadas e escapam curingas de LIKE.
+
+O envelope contém itens, página, tamanho, total, total de páginas, indicadores de navegação e um resumo de todos os registros do filtro. O financeiro e os extratos usam esses resumos para não apresentar como saldo total a soma apenas da página.
+
+A interface mantém paginações independentes por lista, reinicia a página quando mudam a busca, tamanho ou filtro e ignora respostas de buscas anteriores. Os seletores pesquisam remotamente, preservando a opção selecionada ao navegar. O painel consulta somente cinco itens para suas prévias; indicadores continuam baseados no relatório completo.
+
+Snapshots usam paginação local apenas na renderização dos dados imutáveis; captura e download mantêm todos os registros. O estoque do relatório é paginado na tela e integral na impressão.

@@ -29,7 +29,12 @@ async function http(path, { method = 'GET', body, key, expected = 200, auth = tr
   return data;
 }
 async function test(name, action) { await action(); passed++; console.log(`OK ${passed} — ${name}`); }
-const get = path => http('/api/v1' + path);
+const get = async path => {
+  const url = new URL(base + '/api/v1' + path); if (!url.searchParams.has('size')) url.searchParams.set('size', '100');
+  let value = await http(url.pathname + url.search); if (!Array.isArray(value?.items)) return value;
+  const rows = [];
+  while (true) { rows.push(...value.items); if (!value.hasNext) return rows; url.searchParams.set('page', String(value.page + 1)); value = await http(url.pathname + url.search); }
+};
 const post = (path, body, expected = 200, key = randomUUID()) => http('/api/v1' + path, { method: 'POST', body, expected, key });
 const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const tag = randomUUID().slice(0, 8);

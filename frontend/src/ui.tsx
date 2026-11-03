@@ -27,9 +27,9 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.box} /></svg>;
 }
 export function useResource<T>(path: string, revision: number) {
-  const [data, setData] = useState<T>(); const [error, setError] = useState(''); const [loading, setLoading] = useState(true);
-  useEffect(() => { let alive = true; setLoading(true); setError(''); api.get<T>(path).then(d => { if (alive) setData(d); }).catch(e => { if (alive) setError(e.message); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, [path, revision]);
-  return { data, error, loading };
+  const [data, setData] = useState<{ path: string; value: T }>(); const [error, setError] = useState(''); const [loading, setLoading] = useState(true);
+  useEffect(() => { let alive = true; setLoading(true); setError(''); api.get<T>(path).then(d => { if (alive) setData({ path, value: d }); }).catch(e => { if (alive) setError(e.message); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, [path, revision]);
+  return { data: data?.path === path ? data.value : undefined, error, loading };
 }
 export function Status({ loading, error }: { loading: boolean; error: string }) {
   return error ? <p role="alert" className="alert error">{error}</p> : loading ? <p role="status" className="loading">Carregando informações…</p> : null;

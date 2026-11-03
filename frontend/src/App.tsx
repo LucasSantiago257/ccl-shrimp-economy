@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import * as api from './api';
-import { ClosedDayContext, Icon, Status, date, today, useResource } from './ui';
-import type { Partner, PeriodStatus, Product } from './types';
+import { ClosedDayContext, Icon, date, today, useResource } from './ui';
+import type { PeriodStatus } from './types';
 import { PartnersPage, ProductsPage } from './CatalogPages';
 import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
@@ -47,9 +47,6 @@ export default function App() {
 
 function Shell({ username, signOut }: { username: string; signOut: () => void }) {
   const [page, setPage] = useState('dashboard'); const [revision, setRevision] = useState(0); const [menu, setMenu] = useState(false); const [notice, setNotice] = useState('');
-  const customers = useResource<Partner[]>('/api/v1/customers', revision);
-  const suppliers = useResource<Partner[]>('/api/v1/suppliers', revision);
-  const products = useResource<Product[]>('/api/v1/products', revision);
   const [clockRevision, setClockRevision] = useState(0);
   const period = useResource<PeriodStatus>('/api/v1/closings/status', revision + clockRevision);
   useEffect(() => { const timer = setInterval(() => setClockRevision(v => v + 1), 60000); return () => clearInterval(timer); }, []);
@@ -58,19 +55,17 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
   const saved = () => { setRevision(r => r + 1); setNotice('Registro salvo com sucesso.'); };
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4500); return () => clearTimeout(timer); }, [notice, revision]);
   async function exit() { try { await api.logout(); signOut(); } catch (e) { setNotice((e as Error).message); } }
-  const catalogError = customers.error || suppliers.error || products.error;
   return <div className="app-shell">
     {menu && <button className="menu-backdrop" aria-label="Fechar menu" onClick={() => setMenu(false)} />}
     <aside className={'sidebar ' + (menu ? 'open' : '')}><div className="brand"><span className="brand-mark"><Icon name="wave" size={27} /></span><span>maré<small>GESTÃO DO CAMARÃO</small></span></div><nav aria-label="Navegação principal">{pages.map(p => <div key={p.id}>{p.group && <div className="nav-group">{p.group}</div>}<button className={'nav-item ' + (page === p.id ? 'active' : '')} onClick={() => navigate(p.id)} aria-current={page === p.id ? 'page' : undefined}><Icon name={p.icon} /><span>{p.label}</span>{page === p.id && <span className="nav-dot" />}</button></div>)}</nav><div className="sidebar-bottom"><div className="account-avatar">{username.slice(0, 1).toUpperCase()}</div><div><strong>{username}</strong><small>Administrador</small></div><button className="icon-button" aria-label="Sair do sistema" title="Sair" onClick={() => void exit()}><Icon name="logout" size={18} /></button></div></aside>
     <div className="main-shell"><header className="topbar"><button className="icon-button mobile-menu" aria-label="Abrir menu" onClick={() => setMenu(true)}><Icon name="menu" /></button><span className="breadcrumb">Meu negócio <span>/</span> <strong>{current.label}</strong></span><span className="top-date">{new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Bahia', dateStyle: 'long' }).format(new Date(today() + 'T12:00:00Z'))}</span></header><main className="content"><div className="page-heading"><div><span className="eyebrow">GESTÃO DO SEU NEGÓCIO</span><h1>{current.label}</h1><p>{current.description}</p></div><button className="button secondary small" onClick={() => setRevision(r => r + 1)}>Atualizar</button></div>
-      {catalogError && <Status loading={false} error={catalogError} />}
       {period.data?.closed && <div className="closed-day-banner" role="status"><div><strong>Dia {date(period.data.date)} fechado</strong><span>Novos lançamentos estão bloqueados. Consulte o snapshot preservado no fechamento.</span></div><button className="button secondary small" onClick={() => navigate('result')}>Ver fechamentos</button></div>}
       <ClosedDayContext.Provider value={!!period.data?.closed}>
-      {page === 'dashboard' && <Dashboard revision={revision} products={products.data || []} navigate={navigate} />}
-      {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} partners={(page === 'customers' ? customers.data : suppliers.data) || []} loading={page === 'customers' ? customers.loading : suppliers.loading} revision={revision} saved={saved} />}
-      {page === 'products' && <ProductsPage products={products.data || []} loading={products.loading} saved={saved} />}
-      {(page === 'purchases' || page === 'sales') && <TradesPage key={page} sale={page === 'sales'} parties={(page === 'sales' ? customers.data : suppliers.data) || []} products={products.data || []} revision={revision} saved={saved} />}
-      {page === 'stock' && <StockPage products={products.data || []} revision={revision} saved={saved} />}
+      {page === 'dashboard' && <Dashboard revision={revision} navigate={navigate} />}
+      {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} revision={revision} saved={saved} />}
+      {page === 'products' && <ProductsPage revision={revision} saved={saved} />}
+      {(page === 'purchases' || page === 'sales') && <TradesPage key={page} sale={page === 'sales'} revision={revision} saved={saved} />}
+      {page === 'stock' && <StockPage revision={revision} saved={saved} />}
       {page === 'finance' && <FinancePage revision={revision} saved={saved} />}
       {page === 'expenses' && <ExpensesPage revision={revision} saved={saved} />}
       {page === 'result' && <ResultPage revision={revision} saved={saved} />}

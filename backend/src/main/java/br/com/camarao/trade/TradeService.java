@@ -24,7 +24,9 @@ public class TradeService {
     }
     public record Trade(@Positive Long partyId,@NotEmpty @Size(max=100) List<@Valid Item> items,
         @NotNull @DecimalMin("0") @Digits(integer=12,fraction=2) BigDecimal paidAmount,
-        @NotBlank @Pattern(regexp="CASH|PIX|TRANSFER|CARD") String method,@NotNull LocalDate dueDate,Boolean payInFull) {}
+        @NotBlank @Pattern(regexp="CASH|PIX|TRANSFER|CARD") String method,@NotNull LocalDate dueDate,Boolean payInFull,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @DecimalMin("0") @Digits(integer=12,fraction=2) BigDecimal discountAmount) {}
     private final Sql sql;
     private final StockService stock;
     private final FinanceService finance;
@@ -39,15 +41,19 @@ public class TradeService {
         Rules.require(!sale || trade.partyId()!=null,"Informe o cliente da venda.");
         Rules.require(trade.items().stream().map(Item::productId).distinct().count()==trade.items().size(),"Agrupe o mesmo produto em um único item.");
         Rules.require(trade.items().stream().allMatch(i -> i.total().signum()>0),"Cada item precisa totalizar ao menos um centavo.");
-        BigDecimal total=trade.items().stream().map(Item::total).reduce(BigDecimal.ZERO,BigDecimal::add);
-        Rules.require(total.precision()-total.scale()<=12,"Total da operação acima do limite permitido.");
+        BigDecimal gross=trade.items().stream().map(Item::total).reduce(BigDecimal.ZERO,BigDecimal::add);
+        var amounts=SaleAmounts.calculate(gross,trade.discountAmount());
+        Rules.require(sale || amounts.discount().signum()==0,"Desconto por documento está disponível apenas para vendas.");
+        BigDecimal total=amounts.net();
+        Rules.require(gross.precision()-gross.scale()<=12,"Total da operação acima do limite permitido.");
         BigDecimal paidAmount=Boolean.TRUE.equals(trade.payInFull()) ? total : trade.paidAmount();
         Rules.require(paidAmount.compareTo(total)<=0,"O pagamento excede o total da operação.");
         return idempotency.run(key,sale?"SALE":"PURCHASE",trade,actor,() -> periods.requireOpenDay().flatMap(now -> {
             String table=sale?"sales":"purchases",party=sale?"customer_id":"supplier_id";
-            String cost=sale?",cost_total":"",costValue=sale?",0":"";
+            String cost=sale?",cost_total,gross_total,discount_amount":"",costValue=sale?",0,:gross,:discount":"";
             var params=new HashMap<String,Object>(Map.of("total",total,"at",now,"actor",actor));
             params.put("party",trade.partyId());
+            if(sale) { params.put("gross",gross); params.put("discount",amounts.discount()); }
             Mono<Void> partner=trade.partyId()==null ? Mono.empty() : catalog.requireActivePartner(sale,trade.partyId());
             return partner.then(sql.insert("INSERT INTO "+table+"("+party+",total,occurred_at,created_by"+cost+") VALUES(:party,:total,:at,:actor"+costValue+")",params))
                 .flatMap(id -> Flux.fromIterable(trade.items().stream().sorted(Comparator.comparingLong(Item::productId)).toList())
@@ -64,14 +70,15 @@ public class TradeService {
                             .thenReturn(BigDecimal.ZERO);
                     }).reduce(BigDecimal.ZERO,BigDecimal::add)
                     .flatMap(costTotal -> sale ? sql.update("UPDATE sales SET cost_total=:cost WHERE id=:id",Map.of("cost",costTotal,"id",id)).thenReturn(id) : Mono.just(id))
-                    .flatMap(doc -> finance.tradeTitle(sale,doc,trade.partyId(),total,trade.dueDate(),now))
+                    .flatMap(doc -> total.signum()==0 ? Mono.just(id) : finance.tradeTitle(sale,doc,trade.partyId(),total,trade.dueDate(),now))
                     .flatMap(title -> paidAmount.signum()==0 ? Mono.just(id) : finance.settle(List.of(new FinanceService.Allocation(title,paidAmount)),trade.method(),now,actor).thenReturn(id)));
         }));
     }
-    public Flux<Map<String,Object>> list(boolean sale) {
+    public Mono<PageResult> list(boolean sale,PageQuery page) {
         String table=sale?"sales":"purchases",partyTable=sale?"customers":"suppliers",party=sale?"customer_id":"supplier_id",doc=sale?"sale_id":"purchase_id";
-        return sql.all("SELECT d.*,COALESCE(p.name,'Fornecedor não informado') AS party_name,(SELECT SUM(i.quantity) FROM "+(sale?"sale_items":"purchase_items")+" i WHERE i."+doc+"=d.id) AS quantity "
-            +"FROM "+table+" d LEFT JOIN "+partyTable+" p ON p.id=d."+party+" ORDER BY d.id DESC LIMIT 200",Map.of());
+        return sql.page("SELECT d.*,COALESCE(p.name,'Fornecedor não informado') AS party_name,(SELECT SUM(i.quantity) FROM "+(sale?"sale_items":"purchase_items")+" i WHERE i."+doc+"=d.id) AS quantity "
+            +"FROM "+table+" d LEFT JOIN "+partyTable+" p ON p.id=d."+party+" WHERE (COALESCE(p.name,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(d.id AS CHAR) LIKE :q ESCAPE '!')",
+            "d.id DESC",Map.of("q",page.like()),page,"total");
     }
     public Flux<Map<String,Object>> items(boolean sale,long id) {
         return sql.all("SELECT i.*,p.name AS product_name FROM "+(sale?"sale_items":"purchase_items")+" i JOIN products p ON p.id=i.product_id WHERE i."+(sale?"sale_id":"purchase_id")+"=:id ORDER BY i.id",Map.of("id",id));

@@ -1,0 +1,34 @@
+.pagination{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:17px 20px;border-top:1px solid var(--line);background:#fafcf9;color:#7a8d7c;font-size:11px;margin-bottom:16px}
+.panel>.pagination{margin-bottom:0}
+.pagination-total{margin-right:auto;font-variant-numeric:tabular-nums}
+.pagination-size{display:flex;align-items:center;gap:8px;font-size:10px}
+.pagination-size select{width:72px;min-height:33px;padding:6px 9px;font-size:11px}
+.pagination-buttons{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
+.pagination-buttons>span{padding:0 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pagination.compact{border:0;padding:0;margin:0;background:none;justify-content:flex-end}
+.pagination.compact .button{padding:5px 9px;min-height:30px;font-size:10px}
+.remote-select{display:flex;flex-direction:column;gap:8px;min-width:0}
+.remote-select>input[type=search]{font-size:11px;min-height:34px;padding:8px 11px}
+.remote-select .loading,.remote-select .alert{padding:4px;font-size:10px;margin:0}
+.remote-select .pagination.compact{justify-content:space-between}
+.document-totals{padding:22px 25px;display:flex;flex-direction:column;gap:12px;background:#f3f7ef;color:#64805e}
+.document-totals>span,.subtotal-line{display:flex;align-items:center;justify-content:space-between;gap:15px;font-size:12px}
+.document-totals>span:last-child{border-top:1px solid #e0e9dc;padding-top:14px}
+.subtotal-line{padding:14px 4px;color:#71886a}
+.closing-search{padding:18px 22px}
+.panel-heading{flex-wrap:wrap}
+.panel-heading>.search{max-width:100%;min-width:min(220px,100%)}
+.statement-total~.search{margin:18px;max-width:calc(100% - 36px)}
+.print-only{display:none}
+@media(max-width:520px){
+ .pagination{padding:14px;gap:12px;justify-content:space-between}
+ .pagination-total{font-size:10px}
+ .pagination-buttons{width:100%;gap:5px;flex-wrap:nowrap}
+ .pagination-buttons .button{font-size:10px;padding:7px 9px;min-height:35px}
+ .pagination.compact .pagination-buttons{justify-content:flex-end}
+ .pagination.compact .pagination-buttons .button{min-height:31px}
+ .panel-heading>.search{width:100%;flex-basis:100%}
+ .trade-total>span{font-size:10px;max-width:140px}
+ .document-totals{padding:18px}
+}
+@media print{.pagination,.remote-select>input[type=search],.screen-only{display:none!important}.print-only{display:block}}

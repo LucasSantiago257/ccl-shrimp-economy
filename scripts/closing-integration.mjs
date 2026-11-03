@@ -18,7 +18,12 @@ async function http(path, { method = 'GET', body, key, expected = [200], form = 
   assert.ok(expected.includes(response.status), `${method} ${path}: HTTP ${response.status} ${JSON.stringify(data)}`);
   return raw ? { text, status: response.status, headers: response.headers, data } : data;
 }
-const get = path => http('/api/v1' + path);
+const get = async path => {
+  const url = new URL(base + '/api/v1' + path); if (!url.searchParams.has('size')) url.searchParams.set('size', '100');
+  let value = await http(url.pathname + url.search); if (!Array.isArray(value?.items)) return value;
+  const rows = [];
+  while (true) { rows.push(...value.items); if (!value.hasNext) return rows; url.searchParams.set('page', String(value.page + 1)); value = await http(url.pathname + url.search); }
+};
 const post = (path, body, expected = [200], key = randomUUID(), raw = false) => http('/api/v1' + path, { method: 'POST', body, expected, key, raw });
 async function test(name, run) { await run(); passed++; console.log(`OK fechamento ${passed} — ${name}`); }
 const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -83,9 +88,16 @@ await test('Corrida entre lançamento e fechamento preserva uma fronteira atômi
 await test('Snapshot contém metadados, itens e posições financeiras preservadas', async () => {
   assert.equal(captured.metadata.closed_by, env.APP_ADMIN_USERNAME);
   assert.equal(captured.metadata.date_from, day); assert.equal(captured.metadata.date_to, day);
-  assert.equal(captured.snapshot.schemaVersion, 1);
+  assert.equal(captured.snapshot.schemaVersion, 2);
+  assert.ok('discounts' in captured.snapshot.report.metrics);
+  for (const sale of captured.snapshot.records.sales) assert.equal(Math.round(Number(sale.gross_total) * 100) - Math.round(Number(sale.discount_amount) * 100), Math.round(Number(sale.total) * 100));
   for (const key of ['sales', 'sale_items', 'purchases', 'purchase_items', 'expenses', 'stock_movements', 'settlements', 'settlement_allocations', 'titles', 'products']) assert.ok(Array.isArray(captured.snapshot.records[key]), key);
   assert.ok(captured.snapshot.records.purchases.some(p => p.id === anonymousPurchase && p.supplier_id === null));
+  const titleCount = (await get('/titles?nature=RECEIVABLE')).length + (await get('/titles?nature=PAYABLE')).length;
+  assert.equal(captured.snapshot.records.titles.length, titleCount, 'Snapshot não pode ser limitado à página de títulos.');
+  const first = await http('/api/v1/closings?page=1&size=1');
+  const second = await http('/api/v1/closings?page=2&size=1');
+  assert.ok(first.hasNext); assert.notEqual(first.items[0].id, second.items[0].id);
 });
 await test('Arquivo JSON baixado corresponde exatamente ao SHA-256 preservado', async () => {
   const download = await http(`/api/v1/closings/${closureId}/snapshot`, { raw: true }); rawSnapshot = download.text;

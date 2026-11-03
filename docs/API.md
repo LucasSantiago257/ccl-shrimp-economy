@@ -1,6 +1,24 @@
 # API inicial
 
-JSON em `/api/v1`. Campos financeiros e quantidades podem ser enviados como strings decimais com ponto. Listas são limitadas conforme descrito no README. IDs são números inteiros positivos.
+JSON em `/api/v1`. Campos financeiros e quantidades podem ser enviados como strings decimais com ponto. IDs são números inteiros positivos.
+
+## Paginação
+
+GET de `/customers`, `/suppliers`, `/products`, `/sales`, `/purchases`, `/expenses`, `/titles`, `/settlements`, `/stock/movements` e `/closings` retorna um objeto paginado. Essa resposta substitui os arrays da versão inicial; a interface e os testes foram atualizados em conjunto.
+
+Parâmetros comuns: `page` a partir de 1 (padrão 1), `size` entre 1 e 100 (padrão 20) e `q` de até 200 caracteres. Exemplo: `/customers?page=2&size=20&q=Maria`. `%`, `_` e `!` na busca são tratados como texto literal. Valores inválidos retornam 400.
+
+Formato (itens abreviados):
+
+```json
+{"items":[{"id":1,"name":"Maria"}],"page":1,"size":20,"total":42,"totalPages":3,"hasNext":true,"hasPrevious":false,"summary":{}}
+```
+
+`total` é a quantidade de registros, não um valor financeiro. Uma página além da última retorna `items:[]`, mantendo a contagem real. A ordenação inclui o ID para desempate.
+
+`summary` agrega todos os registros do filtro, não apenas a página: `balance` em clientes/fornecedores; `quantity` e `stock_value` em produtos; `total` em documentos/despesas; `amount`, `paid` e `outstanding` em títulos. Quando não há agregação específica, é `{}`. Contagem, resumo e página são consultados na mesma transação de leitura.
+
+Relatórios, snapshots completos e itens de um documento continuam com seus formatos próprios, sem cortes por paginação.
 
 ## Autenticação
 
@@ -14,8 +32,9 @@ Depois de autenticar, obtenha novamente o CSRF antes dos comandos. O navegador i
 ## Cadastros
 
 - GET/POST `/customers` e `/suppliers`; PUT `/{id}` para editar/inativar.
-- GET aceita `?q=nome` (busca por nome, limite 200).
+- GET aceita `q` (nome, telefone ou documento) e `activeOnly=true`.
 - GET/POST `/products`; PUT `/products/{id}`.
+- Produtos aceitam `q` por nome/código, `activeOnly=true` e `inStockOnly=true`.
 
 Cliente/fornecedor:
 
@@ -33,12 +52,13 @@ Produto:
 
 POSTs abaixo exigem `Idempotency-Key` de 16 a 64 caracteres alfanuméricos, `_` ou `-` (UUID recomendado). Repetir o mesmo corpo com a mesma chave não duplica o lançamento. Uma mesma chave não pode representar dois comandos diferentes.
 
-GET/POST `/purchases` ou `/sales`:
+GET/POST `/purchases` ou `/sales`. Exemplo de venda:
 
 ```json
 {
   "partyId": 1,
   "items": [{"productId":1,"quantity":"10.000","unitPrice":"50.00"}],
+  "discountAmount":"50.00",
   "paidAmount":"200.00",
   "method":"PIX",
   "dueDate":"2026-10-30"
@@ -46,6 +66,10 @@ GET/POST `/purchases` ou `/sales`:
 ```
 
 `partyId` é fornecedor na compra e cliente na venda. Nas compras pode ser omitido ou enviado como `null`; nas vendas continua obrigatório. `paidAmount=0` cria dívida integral; igual ao total quita imediatamente. A propriedade opcional `payInFull=true` solicita quitação do total exato calculado no servidor, substituindo `paidAmount`; a interface utiliza essa opção para pagamento integral sem depender da estimativa numérica do navegador. Itens não podem repetir produto. Total mínimo de um centavo por item. Métodos: CASH, PIX, TRANSFER ou CARD. Retorno `{"id":1}`. GET `/{sales|purchases}/{id}/items` mostra os itens.
+
+`discountAmount` é opcional nas vendas (padrão zero) e deve ter no máximo duas casas decimais. `gross_total` é a soma dos itens; `discount_amount` é o desconto do documento; `total` é o valor líquido. `paidAmount` não pode ultrapassar esse líquido e `payInFull` quita o líquido exato. O exemplo acima gera venda de R$ 450, pagamento de R$ 200 e dívida de R$ 250.
+
+Desconto integral é permitido: gera venda de total zero com custo e movimento de estoque, mas sem título ou recebimento. Nas compras omita o desconto ou envie zero. Os itens preservam seus subtotais brutos, sem rateio do desconto global. Novos snapshots usam `schemaVersion=2`; os anteriores permanecem íntegros.
 
 POST `/settlements` permite quitar parcialmente ou distribuir um pagamento entre títulos da mesma pessoa/natureza:
 
@@ -67,13 +91,13 @@ GET `/stock/movements?productId=1`. POST `/stock/losses`:
 {"productId":1,"quantity":"0.500","reason":"Descarte por conservação"}
 ```
 
-GET `/reports/result?from=2026-10-01&to=2026-10-31`: `metrics` com receita, CMV, resultado, despesas, perdas, caixa e contas abertas; `stock` com posições históricas por produto. Datas inclusivas e período de até dez anos.
+GET `/reports/result?from=2026-10-01&to=2026-10-31`: `metrics` com subtotal das vendas (`gross_revenue`), descontos (`discounts`), receita líquida (`revenue`), CMV, resultado, despesas, perdas, caixa e contas abertas; `stock` com posições históricas por produto. Datas inclusivas e período de até dez anos.
 
 `receivables` representa o saldo de vendas a receber; `purchase_payables` representa apenas compras ainda a pagar. `payables` inclui também despesas. Esses totais são calculados sobre todos os títulos, independentemente do limite das listas da interface.
 
 ## Fechamentos
 
-- GET `/closings`: metadados de todos os fechamentos, sem recalcular snapshots.
+- GET `/closings`: metadados paginados e pesquisáveis dos fechamentos, sem recalcular snapshots.
 - GET `/closings/status`: data operacional atual, indicador `closed` e ID do fechamento quando o dia estiver bloqueado.
 - POST `/closings`, com CSRF e `Idempotency-Key`:
 

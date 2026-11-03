@@ -25,7 +25,8 @@ public class StockOperations {
             sql.insert("INSERT INTO stock_movements(product_id,type,quantity_delta,value_delta,reason,occurred_at,created_by) VALUES(:product,'LOSS',:quantity,:value,:reason,:at,:actor)",
                 Map.of("product",loss.productId(),"quantity",loss.quantity().negate(),"value",cost.totalCost().negate(),"reason",loss.reason().trim(),"at",now,"actor",actor)))));
     }
-    public Flux<Map<String,Object>> movements(long productId) {
-        return sql.all("SELECT m.*,p.name AS product_name FROM stock_movements m JOIN products p ON p.id=m.product_id WHERE (:product=0 OR m.product_id=:product) ORDER BY m.id DESC LIMIT 300",Map.of("product",productId));
+    public Mono<PageResult> movements(long productId,PageQuery page) {
+        return sql.page("SELECT m.*,p.name AS product_name FROM stock_movements m JOIN products p ON p.id=m.product_id WHERE (:product=0 OR m.product_id=:product) AND (p.name LIKE :q ESCAPE '!' OR p.code LIKE :q ESCAPE '!' OR m.reason LIKE :q ESCAPE '!')",
+            "m.id DESC",Map.of("product",productId,"q",page.like()),page);
     }
 }

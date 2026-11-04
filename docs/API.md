@@ -95,6 +95,10 @@ GET `/reports/result?from=2026-10-01&to=2026-10-31`: `metrics` com subtotal das 
 
 `receivables` representa o saldo de vendas a receber; `purchase_payables` representa apenas compras ainda a pagar. `payables` inclui também despesas. Esses totais são calculados sobre todos os títulos, independentemente do limite das listas da interface.
 
+## Dashboards
+
+GET `/reports/dashboard?from=AAAA-MM-DD&to=AAAA-MM-DD` retorna `from`, `to`, `timezone`, `grouping`, `metrics` (mesmos indicadores do fechamento), `stock_kg`, `composition` e `series`. Em `composition`, `sales_total`, `sales_paid`, `purchases_total` e `purchases_paid` consideram documentos do intervalo e pagamentos até o fim do último dia. Cada ponto da série traz suas datas inclusivas e os valores de receita, resultado, caixa e quilos. O intervalo aceita de 1 a 366 dias. O agrupamento é `day` até 31 dias, `week` até 90 e `month` acima disso, respeitando America/Bahia.
+
 ## Fechamentos
 
 - GET `/closings`: metadados paginados e pesquisáveis dos fechamentos, sem recalcular snapshots.

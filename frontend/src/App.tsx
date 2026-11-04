@@ -6,6 +6,7 @@ import type { PeriodStatus } from './types';
 import { PartnersPage, ProductsPage } from './CatalogPages';
 import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
+import { AnalyticsPage } from './AnalyticsPage';
 
 const pages = [
   { id: 'dashboard', label: 'Visão geral', icon: 'dashboard', group: 'PRINCIPAL', description: 'Uma visão clara do seu negócio.' },
@@ -15,7 +16,8 @@ const pages = [
   { id: 'purchases', label: 'Compras', icon: 'purchase', group: 'OPERAÇÃO', description: 'Registre o camarão que chega à empresa.' },
   { id: 'sales', label: 'Vendas', icon: 'sale', description: 'Venda por quilo, à vista ou fiado.' },
   { id: 'stock', label: 'Estoque', icon: 'box', description: 'Acompanhe cada entrada, saída e perda.' },
-  { id: 'finance', label: 'Financeiro', icon: 'wallet', group: 'RESULTADOS', description: 'Recebimentos e pagamentos no seu ritmo.' },
+  { id: 'analytics', label: 'Dashboards', icon: 'report', group: 'RESULTADOS', description: 'Acompanhe vendas, caixa e estoque ao longo do tempo.' },
+  { id: 'finance', label: 'Financeiro', icon: 'wallet', description: 'Recebimentos e pagamentos no seu ritmo.' },
   { id: 'expenses', label: 'Despesas', icon: 'wallet', description: 'Registre os gastos da operação.' },
   { id: 'result', label: 'Fechamento', icon: 'report', description: 'Confira o resultado gerencial do período.' },
 ];
@@ -62,6 +64,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
       {period.data?.closed && <div className="closed-day-banner" role="status"><div><strong>Dia {date(period.data.date)} fechado</strong><span>{period.data.automaticClosingPending ? 'Novos lançamentos estão bloqueados desde as 23h59. O snapshot automático está sendo preparado.' : 'Novos lançamentos estão bloqueados. Consulte o snapshot preservado no fechamento.'}</span></div><button className="button secondary small" onClick={() => navigate('result')}>Ver fechamentos</button></div>}
       <ClosedDayContext.Provider value={!!period.data?.closed}>
       {page === 'dashboard' && <Dashboard revision={revision} navigate={navigate} />}
+      {page === 'analytics' && <AnalyticsPage revision={revision} />}
       {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} revision={revision} saved={saved} />}
       {page === 'products' && <ProductsPage revision={revision} saved={saved} />}
       {(page === 'purchases' || page === 'sales') && <TradesPage key={page} sale={page === 'sales'} revision={revision} saved={saved} />}

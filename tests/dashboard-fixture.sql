@@ -1,0 +1,30 @@
+-- Historical data for a fresh, isolated camarao-dashboard-qa Compose project only.
+USE camarao_test;
+START TRANSACTION;
+SET @product=(SELECT MIN(id) FROM products);
+SET @buy='2024-10-29 12:00:00', @sale='2024-10-31 02:58:59', @partial='2024-11-01 03:00:00', @final='2024-11-02 03:00:00';
+INSERT INTO customers(name) VALUES('Dashboard QA');
+SET @customer=LAST_INSERT_ID();
+INSERT INTO purchases(supplier_id,total,occurred_at,created_by) VALUES(NULL,500,@buy,'QA');
+SET @purchase=LAST_INSERT_ID();
+INSERT INTO purchase_items(purchase_id,product_id,quantity,unit_price,total) VALUES(@purchase,@product,10,50,500);
+SET @item=LAST_INSERT_ID();
+INSERT INTO stock_movements(product_id,type,quantity_delta,value_delta,purchase_item_id,occurred_at,created_by) VALUES(@product,'PURCHASE',10,500,@item,@buy,'QA');
+INSERT INTO financial_titles(nature,purchase_id,amount,issued_at,due_date) VALUES('PAYABLE',@purchase,500,@buy,'2024-10-29');
+SET @bill=LAST_INSERT_ID();
+INSERT INTO settlements(direction,amount,method,occurred_at,created_by) VALUES('OUT',500,'PIX',@buy,'QA');
+INSERT INTO settlement_allocations VALUES(LAST_INSERT_ID(),@bill,500);
+INSERT INTO sales(customer_id,gross_total,discount_amount,total,cost_total,occurred_at,created_by) VALUES(@customer,1100,100,1000,200,@sale,'QA');
+SET @doc=LAST_INSERT_ID();
+INSERT INTO sale_items(sale_id,product_id,quantity,unit_price,total,cost_unit,cost_total) VALUES(@doc,@product,4,275,1100,50,200);
+SET @item=LAST_INSERT_ID();
+INSERT INTO stock_movements(product_id,type,quantity_delta,value_delta,sale_item_id,occurred_at,created_by) VALUES(@product,'SALE',-4,-200,@item,@sale,'QA');
+INSERT INTO financial_titles(nature,customer_id,sale_id,amount,issued_at,due_date) VALUES('RECEIVABLE',@customer,@doc,1000,@sale,'2024-11-02');
+SET @bill=LAST_INSERT_ID();
+INSERT INTO settlements(direction,amount,method,occurred_at,created_by) VALUES('IN',700,'PIX',@partial,'QA');
+INSERT INTO settlement_allocations VALUES(LAST_INSERT_ID(),@bill,700);
+INSERT INTO settlements(direction,amount,method,occurred_at,created_by) VALUES('IN',300,'PIX',@final,'QA');
+INSERT INTO settlement_allocations VALUES(LAST_INSERT_ID(),@bill,300);
+INSERT INTO stock_movements(product_id,type,quantity_delta,value_delta,reason,occurred_at,created_by) VALUES(@product,'LOSS',-1,-50,'Descarte',@partial,'QA');
+COMMIT;
+

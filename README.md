@@ -50,6 +50,10 @@ Para parar sem apagar o banco:
 
 O painel apresenta os totais de **Vendas a receber** e **Compras a pagar**, além de até cinco pendências por categoria. Compras a pagar não incluem despesas operacionais. Compras sem fornecedor são identificadas pelo número da compra, inclusive no financeiro.
 
+## Dashboards
+
+Em **Resultados → Dashboards**, escolha um período para consultar vendas, resultado, caixa e volume em kg. A pizza mostra quanto dos documentos emitidos no período já estava pago na data final. Os saldos a receber e a pagar incluem também documentos anteriores. Cada gráfico oferece **Ver tabela** com os valores exatos.
+
 ## Desconto na venda
 
 O desconto é um valor em reais por documento, de zero até o subtotal dos itens. O total líquido determina a receita, a cobrança e o valor recebido; o custo dos quilos vendidos permanece preservado. Exemplo: subtotal de R$ 500, desconto de R$ 50 e entrada de R$ 200 geram uma venda líquida de R$ 450 e dívida de R$ 250.

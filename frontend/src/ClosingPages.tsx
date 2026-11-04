@@ -20,8 +20,12 @@ export function ClosingsPanel({ from, to, revision, saved }: { from: string; to:
   {view !== null && <Modal title={`Snapshot do fechamento #${view}`} close={() => setView(null)}><SnapshotView id={view} /></Modal>}</>;
 }
 
-const columns: Record<string, string> = { id: 'ID', customer_name: 'Cliente', supplier_name: 'Fornecedor', party_name: 'Pessoa / origem', product_name: 'Produto', gross_total: 'Subtotal', discount_amount: 'Desconto', total: 'Total', cost_total: 'Custo aplicado', quantity: 'Quantidade', unit_price: 'Preço / kg', occurred_at: 'Data do registro', sale_id: 'Venda', purchase_id: 'Compra', amount: 'Valor', paid: 'Baixado até o fim', outstanding: 'Em aberto no fim', direction: 'Movimento', method: 'Forma', title_id: 'Conta', settlement_id: 'Pagamento', category: 'Categoria', description: 'Descrição', type: 'Tipo', quantity_delta: 'Variação kg', value_delta: 'Variação de custo', reason: 'Motivo', nature: 'Natureza', due_date: 'Vencimento' };
+const columns: Record<string, string> = { original_amount: 'Valor original', kind: 'Tipo', source_id: 'Registro original / substituto', created_by: 'Responsável', correction_id: 'Correção', movement_id: 'Movimento original', id: 'ID', customer_name: 'Cliente', supplier_name: 'Fornecedor', party_name: 'Pessoa / origem', product_name: 'Produto', gross_total: 'Subtotal', discount_amount: 'Desconto', total: 'Total', cost_total: 'Custo aplicado', quantity: 'Quantidade', unit_price: 'Preço / kg', occurred_at: 'Data do registro', sale_id: 'Venda', purchase_id: 'Compra', amount: 'Valor', paid: 'Baixado até o fim', outstanding: 'Em aberto no fim', direction: 'Movimento', method: 'Forma', title_id: 'Conta', settlement_id: 'Pagamento', category: 'Categoria', description: 'Descrição', type: 'Tipo', quantity_delta: 'Variação kg', value_delta: 'Variação de custo', reason: 'Motivo', nature: 'Natureza', due_date: 'Vencimento' };
 const sections: [string, string, string[]][] = [
+  ['corrections', 'Correções do período', ['id','kind','source_id','original_amount','reason','created_by','occurred_at']],
+  ['financial_adjustments', 'Estornos financeiros', ['id','settlement_id','direction','amount','reason','occurred_at']],
+  ['correction_stock', 'Estornos de estoque', ['id','correction_id','movement_id']],
+  ['correction_replacements', 'Lançamentos substitutos', ['correction_id','kind','source_id','created_by','occurred_at']],
   ['sales', 'Vendas', ['id', 'customer_name', 'gross_total', 'discount_amount', 'total', 'cost_total', 'occurred_at']],
   ['sale_items', 'Itens das vendas', ['sale_id', 'product_name', 'quantity', 'unit_price', 'total', 'cost_total']],
   ['purchases', 'Compras', ['id', 'supplier_name', 'total', 'occurred_at']],
@@ -30,7 +34,7 @@ const sections: [string, string, string[]][] = [
   ['settlements', 'Recebimentos e pagamentos', ['id', 'direction', 'method', 'amount', 'occurred_at']],
   ['settlement_allocations', 'Vínculos dos pagamentos', ['settlement_id', 'title_id', 'amount']],
   ['stock_movements', 'Movimentos do estoque', ['id', 'product_name', 'type', 'quantity_delta', 'value_delta', 'reason', 'occurred_at']],
-  ['titles', 'Posição das contas na data final', ['id', 'party_name', 'nature', 'amount', 'paid', 'outstanding', 'due_date']],
+  ['titles', 'Posição das contas na data final', ['id', 'party_name', 'nature', 'amount', 'paid', 'outstanding', 'due_date', 'correction_id']],
 ];
 const metricNames: Record<string, string> = { gross_revenue: 'Subtotal das vendas', discounts: 'Descontos concedidos', revenue: 'Vendas líquidas', cost_of_goods: 'Custo das mercadorias vendidas', gross_profit: 'Lucro bruto', operating_result: 'Resultado gerencial', purchases: 'Compras', expenses: 'Despesas', losses: 'Custo das perdas', received: 'Recebimentos', paid: 'Pagamentos', cash_flow: 'Movimento líquido de caixa', opening_cash: 'Saldo anterior dos lançamentos', closing_cash: 'Saldo final dos lançamentos', receivables: 'Vendas a receber', payables: 'Total a pagar', purchase_payables: 'Compras a pagar', purchased_kg: 'Kg comprados', sold_kg: 'Kg vendidos', lost_kg: 'Kg perdidos' };
 function cell(row: SnapshotRecord, key: string) {
@@ -38,7 +42,7 @@ function cell(row: SnapshotRecord, key: string) {
   if (key === 'occurred_at') return timestamp(String(value));
   if (key === 'due_date') return date(String(value));
   if (key === 'quantity' || key === 'quantity_delta') return kg(value);
-  if (['gross_total', 'discount_amount', 'total', 'cost_total', 'unit_price', 'value_delta', 'amount', 'paid', 'outstanding'].includes(key)) return money(value);
+  if (['original_amount', 'gross_total', 'discount_amount', 'total', 'cost_total', 'unit_price', 'value_delta', 'amount', 'paid', 'outstanding'].includes(key)) return money(value);
   const names: Record<string, string> = { RECEIVABLE: 'A receber', PAYABLE: 'A pagar', IN: 'Recebimento', OUT: 'Pagamento', CASH: 'Dinheiro', PIX: 'Pix', CARD: 'Cartão', TRANSFER: 'Transferência', SALE: 'Venda', PURCHASE: 'Compra', LOSS: 'Perda' };
   return names[String(value)] || String(value);
 }

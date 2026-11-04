@@ -60,7 +60,7 @@ export function MutationForm({ path, method = 'POST', build, done, children, but
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const pending = useRef(false);
   const request = useRef({ fingerprint: '', key: '' });
   const closedDay = useContext(ClosedDayContext);
-  const blocked = closedDay && method === 'POST' && ['/api/v1/sales', '/api/v1/purchases', '/api/v1/settlements', '/api/v1/expenses', '/api/v1/stock/losses'].includes(path);
+  const blocked = closedDay && method === 'POST' && (path.startsWith('/api/v1/corrections/') || ['/api/v1/sales', '/api/v1/purchases', '/api/v1/settlements', '/api/v1/expenses', '/api/v1/stock/losses'].includes(path));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (pending.current || blocked) return; pending.current = true; setBusy(true); setError('');
     try {

@@ -1,6 +1,6 @@
 # Validação
 
-Execução inicial em 28/10/2026; desconto, paginação e fechamento automático validados em 03/11/2026, no fuso America/Bahia.
+Execução inicial em 28/10/2026; correções e totais por período validados em 04/11/2026, no fuso America/Bahia.
 
 ## Resultado
 
@@ -11,7 +11,7 @@ Execução inicial em 28/10/2026; desconto, paginação e fechamento automático
 | Integração do fechamento automático com MySQL real e relógio controlado | 1 teste de ciclo completo aprovado |
 | Compilação TypeScript e build Vite | Aprovados |
 | Build dos containers Java e Nginx | Aprovado |
-| Migrações Flyway 11.20.3 em MySQL 8.4 | V1, V2, V3 e V4 aplicadas com sucesso |
+| Migrações Flyway 11.20.3 em MySQL 8.4 | V1 a V5 aplicadas com sucesso |
 | Integração HTTP com MySQL real | 24 de regressão + 17 de desconto/paginação + 13 de fechamento aprovadas |
 | Teste no navegador Microsoft Edge | Aprovado |
 | Nove telas em viewport de 390 × 844 | Sem overflow horizontal da página |
@@ -104,3 +104,17 @@ O build normal aprovou 22 testes unitários. As novas verificações cobrem 23h5
 Uma falha foi provocada depois da inserção do snapshot, durante o avanço do cursor: a transação reverteu os dois registros e a tentativa seguinte concluiu normalmente. Os triggers de falha existiram somente no banco de teste e foram removidos no próprio teste. `scripts/Test-AutomaticClosing.ps1` reproduz o cenário com um novo projeto Docker e preserva somente seu volume ao encerrar.
 
 Na aplicação de teste, os 24 cenários gerais, 17 de desconto/paginação e 13 de fechamento voltaram a passar. O navegador também aprovou confirmação manual, banner de dia fechado, snapshot e download com hash correto, visualização móvel e bloqueio dos lançamentos. A configuração de produção agenda o corte sem depender de navegador ou sessão de usuário; as capturas automáticas usam o autor `Sistema (automático)`.
+
+## Correções e totais por período — 04/11/2026
+
+O build Java e TypeScript foi aprovado. O teste optativo CorrectionDatabaseTest usou serviços reais e MySQL isolado, com relógio controlado. Foram validados os cinco tipos de lançamento, motivo obrigatório, estorno em data atual, pagamentos compartilhados entre contas, bloqueio por movimentos posteriores, restauração de produto inativo, idempotência e quatro cancelamentos concorrentes com uma única confirmação.
+
+Uma falha provocada no segundo produto de uma compra confirmou o rollback integral do primeiro produto, do diário de correção e dos vínculos de estoque. A tentativa seguinte concluiu corretamente. Triggers de auditoria recusaram alterações do histórico.
+
+A consulta do dia original manteve receita, despesa, estoque e títulos anteriores ao ajuste. O snapshot já fechado manteve seus bytes e hash. Também foi capturado um snapshot de data passada depois de uma correção futura e seus títulos conservaram a situação daquela data, sem metadados futuros de cancelamento.
+
+Os totais de compras e vendas foram confrontados com o relatório para o dia original, o dia da correção e o intervalo combinado. Foram verificados estornos de R$ 600 e 20 kg em compras, e R$ 240 e 5 kg em vendas, na data do ajuste. Intervalos incompletos ou invertidos foram rejeitados.
+
+Os testes de navegador corrections.browser.mjs e trade-periods.browser.mjs aprovaram prévia, motivo, confirmação, cancelamento, selo na origem, substituto, histórico, proteção CSRF, filtros de datas, busca, totais em todas as páginas e cartão de compras no dashboard. A tela móvel de 390 px ficou sem overflow horizontal e sem erros JavaScript.
+
+A regressão de API aprovou novamente 24 cenários gerais, 17 de desconto/paginação e 13 de fechamento. Todas as massas fictícias foram criadas nos ambientes isolados. Novos snapshots usam o formato 3 com correções e estornos detalhados.

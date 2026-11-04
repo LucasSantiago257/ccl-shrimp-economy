@@ -21,8 +21,8 @@ public class CatalogService {
     private String table(boolean customer) { return customer ? "customers" : "suppliers"; }
     public Mono<PageResult> partners(boolean customer,PageQuery page,boolean activeOnly) {
         String field = customer ? "customer_id" : "supplier_id";
-        return sql.page("SELECT p.*, COALESCE((SELECT SUM(t.amount-COALESCE(a.paid,0)) FROM financial_titles t "
-            + "LEFT JOIN (SELECT title_id,SUM(amount) paid FROM settlement_allocations GROUP BY title_id) a ON a.title_id=t.id "
+        return sql.page("SELECT p.*, COALESCE((SELECT SUM(IF(t.cancelled_at IS NULL,t.amount,0)-COALESCE(a.paid,0)) FROM title_positions t "
+            + "LEFT JOIN (SELECT title_id,SUM(amount) paid FROM allocation_events GROUP BY title_id) a ON a.title_id=t.id "
             + "WHERE t."+field+"=p.id),0) AS balance FROM "+table(customer)+" p WHERE (:active=0 OR p.active=TRUE) AND (p.name LIKE :q ESCAPE '!' OR p.phone LIKE :q ESCAPE '!' OR p.document LIKE :q ESCAPE '!')",
             "p.name,p.id",Map.of("q",page.like(),"active",activeOnly?1:0),page,"balance");
     }

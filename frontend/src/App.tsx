@@ -7,6 +7,8 @@ import { PartnersPage, ProductsPage } from './CatalogPages';
 import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
 import { AnalyticsPage } from './AnalyticsPage';
+import { CorrectionContext, CorrectionModal, CorrectionsPage } from './Corrections';
+import type { CorrectionTarget } from './Corrections';
 
 const pages = [
   { id: 'dashboard', label: 'Visão geral', icon: 'dashboard', group: 'PRINCIPAL', description: 'Uma visão clara do seu negócio.' },
@@ -20,6 +22,7 @@ const pages = [
   { id: 'finance', label: 'Financeiro', icon: 'wallet', description: 'Recebimentos e pagamentos no seu ritmo.' },
   { id: 'expenses', label: 'Despesas', icon: 'wallet', description: 'Registre os gastos da operação.' },
   { id: 'result', label: 'Fechamento', icon: 'report', description: 'Confira o resultado gerencial do período.' },
+  { id: 'corrections', label: 'Correções', icon: 'report', description: 'Corrija erros com histórico e ajustes de estoque e financeiro.' },
 ];
 
 function Login({ onLogin }: { onLogin: (username: string) => void }) {
@@ -48,6 +51,7 @@ export default function App() {
 }
 
 function Shell({ username, signOut }: { username: string; signOut: () => void }) {
+  const [correction,setCorrection] = useState<CorrectionTarget | null>(null);
   const [page, setPage] = useState('dashboard'); const [revision, setRevision] = useState(0); const [menu, setMenu] = useState(false); const [notice, setNotice] = useState('');
   const [clockRevision, setClockRevision] = useState(0);
   const period = useResource<PeriodStatus>('/api/v1/closings/status', revision + clockRevision);
@@ -57,7 +61,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
   const saved = () => { setRevision(r => r + 1); setNotice('Registro salvo com sucesso.'); };
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4500); return () => clearTimeout(timer); }, [notice, revision]);
   async function exit() { try { await api.logout(); signOut(); } catch (e) { setNotice((e as Error).message); } }
-  return <div className="app-shell">
+  return <CorrectionContext.Provider value={target => setCorrection(target)}><div className="app-shell">
     {menu && <button className="menu-backdrop" aria-label="Fechar menu" onClick={() => setMenu(false)} />}
     <aside className={'sidebar ' + (menu ? 'open' : '')}><div className="brand"><span className="brand-mark"><Icon name="wave" size={27} /></span><span>maré<small>GESTÃO DO CAMARÃO</small></span></div><nav aria-label="Navegação principal">{pages.map(p => <div key={p.id}>{p.group && <div className="nav-group">{p.group}</div>}<button className={'nav-item ' + (page === p.id ? 'active' : '')} onClick={() => navigate(p.id)} aria-current={page === p.id ? 'page' : undefined}><Icon name={p.icon} /><span>{p.label}</span>{page === p.id && <span className="nav-dot" />}</button></div>)}</nav><div className="sidebar-bottom"><div className="account-avatar">{username.slice(0, 1).toUpperCase()}</div><div><strong>{username}</strong><small>Administrador</small></div><button className="icon-button" aria-label="Sair do sistema" title="Sair" onClick={() => void exit()}><Icon name="logout" size={18} /></button></div></aside>
     <div className="main-shell"><header className="topbar"><button className="icon-button mobile-menu" aria-label="Abrir menu" onClick={() => setMenu(true)}><Icon name="menu" /></button><span className="breadcrumb">Meu negócio <span>/</span> <strong>{current.label}</strong></span><span className="top-date">{new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Bahia', dateStyle: 'long' }).format(new Date(today() + 'T12:00:00Z'))}</span></header><main className="content"><div className="page-heading"><div><span className="eyebrow">GESTÃO DO SEU NEGÓCIO</span><h1>{current.label}</h1><p>{current.description}</p></div><button className="button secondary small" onClick={() => setRevision(r => r + 1)}>Atualizar</button></div>
@@ -65,6 +69,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
       <ClosedDayContext.Provider value={!!period.data?.closed}>
       {page === 'dashboard' && <Dashboard revision={revision} navigate={navigate} />}
       {page === 'analytics' && <AnalyticsPage revision={revision} />}
+      {page === 'corrections' && <CorrectionsPage revision={revision} />}
       {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} revision={revision} saved={saved} />}
       {page === 'products' && <ProductsPage revision={revision} saved={saved} />}
       {(page === 'purchases' || page === 'sales') && <TradesPage key={page} sale={page === 'sales'} revision={revision} saved={saved} />}
@@ -72,7 +77,8 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
       {page === 'finance' && <FinancePage revision={revision} saved={saved} />}
       {page === 'expenses' && <ExpensesPage revision={revision} saved={saved} />}
       {page === 'result' && <ResultPage revision={revision + clockRevision} saved={saved} />}
+      {correction && <CorrectionModal key={correction.kind+correction.id+revision} target={correction} revision={revision} close={() => setCorrection(null)} saved={saved} />}
       </ClosedDayContext.Provider>
     </main><footer className="app-footer"><span>maré <span>·</span> Gestão do camarão</span><span>Valores em reais · Pesos em quilos</span></footer></div>{notice && <div role="status" className="toast"><Icon name="check" />{notice}<button className="icon-button" aria-label="Dispensar aviso" onClick={() => setNotice('')}><Icon name="close" size={16} /></button></div>}
-  </div>;
+  </div></CorrectionContext.Provider>;
 }

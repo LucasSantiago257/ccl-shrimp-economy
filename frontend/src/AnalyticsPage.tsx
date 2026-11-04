@@ -90,7 +90,7 @@ function SeriesChart({title,hint,points,keys,lines=false,weights=false}: {
         <text x="53" y={y(t)+3} textAnchor="end">{weights?'':'R$ '}{shortNumber.format(t)}{weights?' kg':''}</text></g>)}
       {keys.map((k,j)=>lines ? <g key={k.field}><polyline fill="none" stroke={k.color} strokeWidth="2" strokeDasharray={j?'5 2':undefined}
         points={points.map((p,i)=>x(i)+','+y(Number(p[k.field]))).join(' ')}/>{points.map((p,i)=><circle key={p.from} cx={x(i)} cy={y(Number(p[k.field]))} r={points.length===1?3:1.6} fill={k.color}/>)}</g>
-        : <g key={k.field}>{points.map((p,i)=><rect key={p.from} fill={k.color} x={x(i)-column*0.4+j*width} width={width*0.92} y={y(Number(p[k.field]))} height={y(0)-y(Number(p[k.field]))}/>)}</g>)}
+        : <g key={k.field}>{points.map((p,i)=><rect key={p.from} fill={k.color} x={x(i)-column*0.4+j*width} width={width*0.92} y={Math.min(y(0),y(Number(p[k.field])))} height={Math.abs(y(0)-y(Number(p[k.field])))}/>)}</g>)}
       {Array.from(new Set([0,Math.floor((points.length-1)/2),points.length-1])).map(i=><text key={i} x={x(i)} y="150" textAnchor="middle">{date(points[i].from).slice(0,5)}</text>)}
     </svg>
     <details className="dash-table"><summary>Ver tabela</summary><div className="table-wrap"><table><thead><tr><th>Período</th>{keys.map(k=><th key={k.field}>{k.label}</th>)}</tr></thead>
@@ -125,10 +125,12 @@ export function AnalyticsPage({revision}: {revision:number}) {
     <Status error={resource.error} loading={resource.loading}/>
     {data && m && <><div className="kpi-grid">
       <Kpi label="Vendas líquidas" value={money(m.revenue)} hint="Após descontos" icon="sale"/>
+      <Kpi label="Compras no período" value={money(m.purchases)} hint={kg(m.purchased_kg)+' comprados'} icon="purchase"/>
       <Kpi label="Resultado gerencial" value={money(m.operating_result)} hint="Após custos, despesas e perdas" featured/>
       <Kpi label="Quilos vendidos" value={kg(m.sold_kg)} hint="Saídas por venda no período" icon="sale"/>
       <Kpi label="Estoque na data final" value={kg(data.stock_kg)} hint={date(data.to)} icon="box"/></div>
       <PaymentPie data={data}/>
+      <p className="subtle">Correções aparecem como estornos, com valores negativos na data do ajuste.</p>
       <div className="dash-balances"><div>Vendas a receber <strong>{money(m.receivables)}</strong></div><div>Compras a pagar <strong>{money(m.purchase_payables)}</strong></div>
       <small>Saldo em {date(data.to)}, incluindo pendências anteriores ao período.</small></div>
       <div className="dash-charts"><SeriesChart title="Quanto vendi e quanto lucrei?" hint="Vendas após descontos e resultado após todos os custos." points={data.series} keys={sales} lines/>

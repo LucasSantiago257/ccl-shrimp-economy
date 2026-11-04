@@ -74,11 +74,36 @@ public class TradeService {
                     .flatMap(title -> paidAmount.signum()==0 ? Mono.just(id) : finance.settle(List.of(new FinanceService.Allocation(title,paidAmount)),trade.method(),now,actor).thenReturn(id)));
         }));
     }
+    @Transactional(readOnly=true)
     public Mono<PageResult> list(boolean sale,PageQuery page) {
+        return list(sale,page,null,null);
+    }
+
+    @Transactional(readOnly=true)
+    public Mono<PageResult> list(boolean sale,PageQuery page,LocalDate from,LocalDate to) {
+        Rules.require((from==null)==(to==null),"Informe as duas datas do período.");
+        if(from!=null) Rules.require(!from.isAfter(to) && java.time.temporal.ChronoUnit.DAYS.between(from,to)<=3660,"Informe um período válido de até dez anos.");
         String table=sale?"sales":"purchases",partyTable=sale?"customers":"suppliers",party=sale?"customer_id":"supplier_id",doc=sale?"sale_id":"purchase_id";
-        return sql.page("SELECT d.*,COALESCE(p.name,'Fornecedor não informado') AS party_name,(SELECT SUM(i.quantity) FROM "+(sale?"sale_items":"purchase_items")+" i WHERE i."+doc+"=d.id) AS quantity "
-            +"FROM "+table+" d LEFT JOIN "+partyTable+" p ON p.id=d."+party+" WHERE (COALESCE(p.name,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(d.id AS CHAR) LIKE :q ESCAPE '!')",
-            "d.id DESC",Map.of("q",page.like()),page,"total");
+        String base="SELECT d.*,c.id AS correction_id,c.occurred_at AS cancelled_at,COALESCE(p.name,'Fornecedor não informado') AS party_name,(SELECT SUM(i.quantity) FROM "+(sale?"sale_items":"purchase_items")+" i WHERE i."+doc+"=d.id) AS quantity "
+            +"FROM "+table+" d LEFT JOIN corrections c ON c.kind='"+(sale?"SALE":"PURCHASE")+"' AND c.source_id=d.id LEFT JOIN "+partyTable+" p ON p.id=d."+party+" WHERE (COALESCE(p.name,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(d.id AS CHAR) LIKE :q ESCAPE '!')";
+        var params=new HashMap<String,Object>();
+        params.put("q",page.like());
+        String window="";
+        if(from!=null) {
+            params.put("from",Rules.start(from));
+            params.put("to",Rules.start(to.plusDays(1)));
+            window=" AND d.occurred_at>=:from AND d.occurred_at<:to";
+        }
+        return sql.page(base+window,"d.id DESC",params,page).flatMap(result -> {
+            String gross=sale ? "gross_total" : "total";
+            String discount=sale ? "discount_amount" : "0";
+            String events="SELECT total,quantity,"+gross+" AS gross_total,"+discount+" AS discount_amount,occurred_at AS event_at,0 AS reversal FROM ("+base+") originals "
+                +"UNION ALL SELECT -total,-quantity,-"+gross+",-("+discount+"),cancelled_at,1 FROM ("+base+") cancelled WHERE correction_id IS NOT NULL";
+            String filter=from==null ? "" : " WHERE event_at>=:from AND event_at<:to";
+            return sql.one("SELECT COALESCE(SUM(total),0) AS total,COALESCE(SUM(quantity),0) AS quantity,COALESCE(SUM(gross_total),0) AS gross_total,COALESCE(SUM(discount_amount),0) AS discount_amount,"
+                +"COALESCE(SUM(IF(reversal=0,total,0)),0) AS registered_total,COALESCE(SUM(IF(reversal=1,-total,0)),0) AS reversed_total,COALESCE(SUM(IF(reversal=1,-quantity,0)),0) AS reversed_quantity FROM ("+events+") events"+filter,params)
+                .map(summary -> new PageResult(result.items(),result.page(),result.size(),result.total(),result.totalPages(),result.hasNext(),result.hasPrevious(),summary));
+        });
     }
     public Flux<Map<String,Object>> items(boolean sale,long id) {
         return sql.all("SELECT i.*,p.name AS product_name FROM "+(sale?"sale_items":"purchase_items")+" i JOIN products p ON p.id=i.product_id WHERE i."+(sale?"sale_id":"purchase_id")+"=:id ORDER BY i.id",Map.of("id",id));

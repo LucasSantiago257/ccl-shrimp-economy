@@ -90,8 +90,8 @@ Administrador único carregado do ambiente; senha BCrypt, sessão WebFlux, CSRF 
 
 ## Próximas etapas do produto
 
-1. Cancelamentos e devoluções, com estorno financeiro e política de recomposição/recalculo de custo; sem deletar o histórico.
-2. Ajustes posteriores auditados que preservem os períodos já fechados.
+1. Devoluções reais, com retorno de mercadoria e reembolso.
+2. Correções avançadas com recálculo de cadeias de custo, além do cancelamento em ordem inversa disponível hoje.
 3. Avaliação de índices e estratégia de busca conforme o volume real de uso.
 4. Usuários, perfis e auditoria de alterações dos cadastros (os lançamentos já registram autor).
 5. Lotes e validade, saldos iniciais, aportes/retiradas e múltiplas contas.

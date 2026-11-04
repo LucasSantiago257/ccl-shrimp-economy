@@ -60,12 +60,12 @@ public class DashboardService {
                    COALESCE(SUM(IF(t.sale_id IS NOT NULL,a.paid,0)),0) AS sales_paid,
                    COALESCE(SUM(IF(t.purchase_id IS NOT NULL,t.amount,0)),0) AS purchases_total,
                    COALESCE(SUM(IF(t.purchase_id IS NOT NULL,a.paid,0)),0) AS purchases_paid
-            FROM financial_titles t LEFT JOIN (
+            FROM title_positions t LEFT JOIN (
                 SELECT a.title_id,SUM(a.amount) AS paid
-                FROM settlement_allocations a JOIN settlements s ON s.id=a.settlement_id
-                WHERE s.occurred_at<:end GROUP BY a.title_id
+                FROM allocation_events a
+                WHERE a.occurred_at<:end GROUP BY a.title_id
             ) a ON a.title_id=t.id
-            WHERE t.issued_at>=:start AND t.issued_at<:end AND (t.sale_id IS NOT NULL OR t.purchase_id IS NOT NULL)
+            WHERE (t.cancelled_at IS NULL OR t.cancelled_at>=:end) AND t.issued_at>=:start AND t.issued_at<:end AND (t.sale_id IS NOT NULL OR t.purchase_id IS NOT NULL)
             """,bounds);
     }
 
@@ -82,19 +82,19 @@ public class DashboardService {
         String query = "WITH periods AS (" + ranges + """
             ), sales_by_period AS (
               SELECT idx,SUM(total) revenue,SUM(cost_total) cost FROM periods
-              JOIN sales ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
+              JOIN sale_events ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
             ), expenses_by_period AS (
               SELECT idx,SUM(total) expenses FROM periods
-              JOIN expenses ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
+              JOIN expense_events ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
             ), cash_by_period AS (
               SELECT idx,SUM(IF(direction='IN',amount,0)) received,SUM(IF(direction='OUT',amount,0)) paid
-              FROM periods JOIN settlements ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
+              FROM periods JOIN settlement_events ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
             ), stock_by_period AS (
               SELECT idx,SUM(IF(type='LOSS',-value_delta,0)) losses,
                      SUM(IF(type='PURCHASE',quantity_delta,0)) purchased_kg,
                      SUM(IF(type='SALE',-quantity_delta,0)) sold_kg,
                      SUM(IF(type='LOSS',-quantity_delta,0)) lost_kg
-              FROM periods JOIN stock_movements ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
+              FROM periods JOIN stock_events ON occurred_at>=lo AND occurred_at<hi GROUP BY idx
             )
             SELECT p.idx,COALESCE(revenue,0) revenue,
                    COALESCE(revenue,0)-COALESCE(cost,0)-COALESCE(expenses,0)-COALESCE(losses,0) operating_result,

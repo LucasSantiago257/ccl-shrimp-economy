@@ -1,3 +1,4 @@
+import { CorrectionAction } from './Corrections';
 import { useState } from 'react';
 import { ClosingsPanel } from './ClosingPages';
 import { Pager, SearchBox, StockPositionTable, usePagedResource } from './Pagination';
@@ -10,7 +11,7 @@ function PaymentModal({ title, close, saved }: { title: Title; close: () => void
 }
 
 function TitlesTable({ titles, pay }: { titles: Title[]; pay: (title: Title) => void }) {
-  return !titles.length ? <Empty text="Nenhuma conta encontrada." /> : <div className="table-wrap"><table><thead><tr><th>Pessoa / origem</th><th>Vencimento</th><th>Total</th><th>Em aberto</th><th>Situação</th><th /></tr></thead><tbody>{titles.map(t => { const pending = Number(t.outstanding) > 0; const late = pending && t.due_date < today(); return <tr key={t.id}><td><strong>{t.party_name}</strong><small>Conta #{t.id} · {t.sale_id ? 'Venda #' + t.sale_id : t.purchase_id ? 'Compra #' + t.purchase_id : 'Despesa #' + t.expense_id}</small></td><td>{date(t.due_date)}</td><td>{money(t.amount)}<small>Baixado: {money(t.paid)}</small></td><td><strong className={pending ? 'text-warn' : 'text-green'}>{money(t.outstanding)}</strong></td><td><span className={'badge ' + (!pending ? 'green' : late ? 'amber' : 'blue')}>{!pending ? 'Quitada' : late ? 'Vencida' : Number(t.paid) > 0 ? 'Parcial' : 'Em aberto'}</span></td><td>{pending && <button className="text-button" onClick={() => pay(t)}>{t.nature === 'RECEIVABLE' ? 'Receber' : 'Pagar'}</button>}</td></tr>; })}</tbody></table></div>;
+  return !titles.length ? <Empty text="Nenhuma conta encontrada." /> : <div className="table-wrap"><table><thead><tr><th>Pessoa / origem</th><th>Vencimento</th><th>Total</th><th>Em aberto</th><th>Situação</th><th /></tr></thead><tbody>{titles.map(t => { const pending = Number(t.outstanding) > 0; const late = pending && t.due_date < today(); return <tr key={t.id}><td><strong>{t.party_name}</strong><small>Conta #{t.id} · {t.sale_id ? 'Venda #' + t.sale_id : t.purchase_id ? 'Compra #' + t.purchase_id : 'Despesa #' + t.expense_id}</small></td><td>{date(t.due_date)}</td><td>{money(t.amount)}<small>Baixado: {money(t.paid)}</small></td><td><strong className={pending ? 'text-warn' : 'text-green'}>{money(t.outstanding)}</strong></td><td><span className={'badge ' + (!pending ? 'green' : late ? 'amber' : 'blue')}>{t.correction_id ? 'Cancelada' : !pending ? 'Quitada' : late ? 'Vencida' : Number(t.paid) > 0 ? 'Parcial' : 'Em aberto'}</span></td><td>{pending && <button className="text-button" onClick={() => pay(t)}>{t.nature === 'RECEIVABLE' ? 'Receber' : 'Pagar'}</button>}</td></tr>; })}</tbody></table></div>;
 }
 
 export function FinancePage({ revision, saved }: { revision: number; saved: () => void }) {
@@ -21,7 +22,7 @@ export function FinancePage({ revision, saved }: { revision: number; saved: () =
 }
 
 function SettlementsTable({ records }: { records: Settlement[] }) {
-  return !records.length ? <Empty text="Nenhum pagamento registrado." /> : <div className="table-wrap"><table><thead><tr><th>Data</th><th>Movimento</th><th>Forma</th><th>Valor</th><th>Contas vinculadas</th></tr></thead><tbody>{records.map(s => <tr key={s.id}><td>{date(s.occurred_at)}<small>#{s.id}</small></td><td><span className={'badge ' + (s.direction === 'IN' ? 'green' : 'gray')}>{s.direction === 'IN' ? 'Recebimento' : 'Pagamento'}</span></td><td>{methods[s.method as keyof typeof methods] || s.method}</td><td>{money(s.amount)}</td><td><small>{s.allocations}</small></td></tr>)}</tbody></table></div>;
+  return !records.length ? <Empty text="Nenhum pagamento registrado." /> : <div className="table-wrap"><table><thead><tr><th>Data</th><th>Movimento</th><th>Forma</th><th>Valor</th><th>Contas vinculadas</th></tr></thead><tbody>{records.map(s => <tr key={s.id}><td>{date(s.occurred_at)}<small>#{s.id}</small></td><td><span className={'badge ' + (s.direction === 'IN' ? 'green' : 'gray')}>{s.direction === 'IN' ? 'Recebimento' : 'Pagamento'}</span></td><td>{methods[s.method as keyof typeof methods] || s.method}</td><td>{money(s.amount)}</td><td><small>{s.allocations}</small>{s.correction_id && <small>Cancelado</small>}<CorrectionAction kind="PAYMENT" id={s.id} cancelled={!!s.correction_id} /></td></tr>)}</tbody></table></div>;
 }
 
 export function CustomerStatement({ customer, revision, saved }: { customer: Partner; revision: number; saved: () => void }) {

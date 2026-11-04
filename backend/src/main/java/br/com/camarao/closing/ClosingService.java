@@ -40,13 +40,13 @@ public class ClosingService {
     Mono<Long> capture(ClosePeriod period,String actor,LocalDateTime now) {
         return reports.report(period.from(),period.to()).flatMap(report -> records(period).flatMap(records -> {
             var snapshot=new LinkedHashMap<String,Object>();
-            snapshot.put("schemaVersion",2); snapshot.put("from",period.from()); snapshot.put("to",period.to());
+            snapshot.put("schemaVersion",3); snapshot.put("from",period.from()); snapshot.put("to",period.to());
             snapshot.put("timezone",Rules.ZONE.toString()); snapshot.put("closedAt",now.atOffset(ZoneOffset.UTC));
             snapshot.put("closedBy",actor); snapshot.put("note",period.note().trim());
             snapshot.put("report",report); snapshot.put("records",records);
             try {
                 String json=mapper.writeValueAsString(snapshot);
-                return sql.insert("INSERT INTO period_closures(date_from,date_to,timezone,closed_at,closed_by,note,schema_version,snapshot_sha256,snapshot_json) VALUES(:from,:to,:zone,:at,:actor,:note,2,:hash,:json)",
+                return sql.insert("INSERT INTO period_closures(date_from,date_to,timezone,closed_at,closed_by,note,schema_version,snapshot_sha256,snapshot_json) VALUES(:from,:to,:zone,:at,:actor,:note,3,:hash,:json)",
                     Map.of("from",period.from(),"to",period.to(),"zone",Rules.ZONE.toString(),"at",now,"actor",actor,"note",period.note().trim(),"hash",sha256(json),"json",json));
             } catch(Exception e) { return Mono.error(new IllegalStateException("Não foi possível preservar o fechamento.",e)); }
         }));
@@ -58,12 +58,16 @@ public class ClosingService {
         queries.put("purchases","SELECT p.*,COALESCE(s.name,'Fornecedor não informado') AS supplier_name FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id WHERE p.occurred_at>=:from AND p.occurred_at<:to ORDER BY p.id");
         queries.put("purchase_items","SELECT i.*,p.code AS product_code,p.name AS product_name FROM purchase_items i JOIN purchases d ON d.id=i.purchase_id JOIN products p ON p.id=i.product_id WHERE d.occurred_at>=:from AND d.occurred_at<:to ORDER BY i.id");
         queries.put("expenses","SELECT * FROM expenses WHERE occurred_at>=:from AND occurred_at<:to ORDER BY id");
-        queries.put("stock_movements","SELECT m.*,p.name AS product_name,p.code AS product_code FROM stock_movements m JOIN products p ON p.id=m.product_id WHERE m.occurred_at>=:from AND m.occurred_at<:to ORDER BY m.id");
+        queries.put("stock_movements","SELECT m.*,p.name AS product_name,p.code AS product_code FROM stock_events m JOIN products p ON p.id=m.product_id WHERE m.occurred_at>=:from AND m.occurred_at<:to ORDER BY m.id");
         queries.put("settlements","SELECT * FROM settlements WHERE occurred_at>=:from AND occurred_at<:to ORDER BY id");
-        queries.put("settlement_allocations","SELECT a.* FROM settlement_allocations a JOIN settlements s ON s.id=a.settlement_id WHERE s.occurred_at>=:from AND s.occurred_at<:to ORDER BY a.settlement_id,a.title_id");
-        queries.put("titles","SELECT t.*,COALESCE(c.name,s.name,e.description,CONCAT('Compra #',t.purchase_id,' · fornecedor não informado')) AS party_name,COALESCE(a.paid,0) AS paid,t.amount-COALESCE(a.paid,0) AS outstanding FROM financial_titles t LEFT JOIN customers c ON c.id=t.customer_id LEFT JOIN suppliers s ON s.id=t.supplier_id LEFT JOIN expenses e ON e.id=t.expense_id LEFT JOIN (SELECT a.title_id,SUM(a.amount) paid FROM settlement_allocations a JOIN settlements s ON s.id=a.settlement_id WHERE s.occurred_at<:to GROUP BY a.title_id) a ON a.title_id=t.id WHERE t.issued_at<:to ORDER BY t.id");
+        queries.put("settlement_allocations","SELECT a.* FROM allocation_events a WHERE a.occurred_at>=:from AND a.occurred_at<:to ORDER BY a.settlement_id,a.title_id");
+        queries.put("titles","SELECT t.id,t.nature,t.customer_id,t.supplier_id,t.sale_id,t.purchase_id,t.expense_id,t.amount,t.issued_at,t.due_date,IF(t.cancelled_at<:to,t.correction_id,NULL) AS correction_id,IF(t.cancelled_at<:to,t.cancelled_at,NULL) AS cancelled_at,COALESCE(c.name,s.name,e.description,CONCAT('Compra #',t.purchase_id,' · fornecedor não informado')) AS party_name,COALESCE(a.paid,0) AS paid,IF(t.cancelled_at<:to,0,t.amount)-COALESCE(a.paid,0) AS outstanding FROM title_positions t LEFT JOIN customers c ON c.id=t.customer_id LEFT JOIN suppliers s ON s.id=t.supplier_id LEFT JOIN expenses e ON e.id=t.expense_id LEFT JOIN (SELECT a.title_id,SUM(a.amount) paid FROM allocation_events a WHERE a.occurred_at<:to GROUP BY a.title_id) a ON a.title_id=t.id WHERE t.issued_at<:to ORDER BY t.id");
         queries.put("products","SELECT * FROM products ORDER BY id");
         var result=new LinkedHashMap<String,Object>();
+        queries.put("corrections","SELECT c.*,COALESCE(s.total,p.total,e.total,f.amount,m.value_delta) AS original_amount FROM corrections c LEFT JOIN sales s ON c.kind='SALE' AND c.source_id=s.id LEFT JOIN purchases p ON c.kind='PURCHASE' AND c.source_id=p.id LEFT JOIN expenses e ON c.kind='EXPENSE' AND c.source_id=e.id LEFT JOIN settlements f ON c.kind='PAYMENT' AND c.source_id=f.id LEFT JOIN stock_movements m ON c.kind='LOSS' AND c.source_id=m.id WHERE c.occurred_at>=:from AND c.occurred_at<:to ORDER BY c.id");
+        queries.put("correction_stock","SELECT a.* FROM correction_stock a JOIN corrections c ON c.id=a.correction_id WHERE c.occurred_at>=:from AND c.occurred_at<:to ORDER BY a.id");
+        queries.put("correction_replacements","SELECT * FROM correction_replacements WHERE occurred_at>=:from AND occurred_at<:to ORDER BY correction_id");
+        queries.put("financial_adjustments","SELECT c.id,c.source_id AS settlement_id,s.direction,-s.amount AS amount,c.occurred_at,c.reason,c.created_by FROM corrections c JOIN settlements s ON c.kind='PAYMENT' AND c.source_id=s.id WHERE c.occurred_at>=:from AND c.occurred_at<:to ORDER BY c.id");
         return Flux.fromIterable(queries.entrySet()).concatMap(entry -> {
             var params=new HashMap<String,Object>();
             if(entry.getValue().contains(":from")) params.put("from",Rules.start(period.from()));

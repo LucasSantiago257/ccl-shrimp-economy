@@ -86,7 +86,17 @@ O Compose habilita `log_bin_trust_function_creators=1` no MySQL do projeto para 
 
 Para testar especificamente a automação com relógio controlado, Java 21, Maven e Docker Desktop, execute `./scripts/Test-AutomaticClosing.ps1`. O script cria um MySQL de teste novo na porta 13307, simula o horário de corte, recuperação e concorrência, encerra os contêineres e preserva o volume de teste. Ele não usa a base operacional. O teste é optativo e fica desabilitado no build normal; a automação do sistema fica habilitada por padrão.
 
-Vendas e compras confirmadas preservam o histórico. Esta versão ainda não oferece cancelamento, devolução ou edição desses documentos; use somente dados de avaliação até validar a operação e concluir esses fluxos.
+## Correção de lançamentos
+
+Use **Corrigir** na lista de compras, vendas, despesas, pagamentos ou perdas. Também é possível informar o tipo e o número em **Resultados → Correções**. Confira a prévia, informe um motivo de 5 a 500 caracteres e confirme o cancelamento. O estorno entra na data atual, que precisa estar aberta; o documento original e os snapshots anteriores ficam preservados.
+
+Documentos com pagamentos vinculados exigem cancelar esses registros primeiro. Um pagamento pode abranger várias contas: a prévia mostra todas elas. Para ajustes de estoque, movimentos posteriores do mesmo produto devem ser corrigidos do mais recente para o mais antigo. Isso permite recompor quantidades, valores e custo médio sem recalcular operações já confirmadas.
+
+Depois, cadastre o lançamento correto na tela de origem e use **Ver cancelamento → Vincular lançamento correto**. O histórico mantém original, motivo, autor, data e substituto. Esta versão trata erros de registro; devoluções reais de mercadoria e reembolsos ainda exigem um fluxo próprio.
+
+Em **Compras** e **Vendas**, selecione o período para ver valores e quilos de todas as páginas e do filtro de busca. Os cartões mostram os valores registrados, estornos e total líquido. Um estorno de documento antigo entra na data da correção, mesmo que o original esteja fora do intervalo da lista. O dashboard também apresenta **Compras no período**, em reais e kg.
+
+O teste optativo `./scripts/Test-Corrections.ps1` usa Java 21, Maven e um MySQL isolado na porta 13307 para conferir correções, períodos históricos, pagamentos, concorrência e rollback. O volume de teste é preservado ao encerrar.
 
 ## Stack e estrutura
 
@@ -195,7 +205,7 @@ O navegador de teste é separado do seu perfil pessoal. O primeiro teste valida 
 - Um administrador configurado por ambiente; cadastro de usuários e permissões distintas ainda pendente.
 - Uma conta financeira operacional; sem saldo inicial, aportes, retiradas ou conciliação bancária. O relatório identifica o saldo como saldo dos lançamentos registrados.
 - Datas operacionais são as do registro, em UTC, com relatório por dia no fuso America/Bahia; sem lançamentos retroativos nesta versão.
-- Sem rascunhos, pedidos futuros, reserva, cancelamentos, devoluções, juros, crédito antecipado, emissão fiscal ou integração de pagamento.
+- Sem rascunhos, pedidos futuros, reserva, devoluções reais, juros, crédito antecipado, emissão fiscal ou integração de pagamento.
 - Sem reabertura de períodos fechados; correções futuras precisarão de ajustes auditados que preservem os snapshots existentes.
 - Sem lotes/validade e sem frete de aquisição rateado. O custo considera os totais arredondados dos itens comprados. Registre despesas operacionais separadamente, evitando contar um mesmo gasto duas vezes.
 - Ambiente de desenvolvimento local. Acesso por celular físico em rede e publicação exigem configuração de rede, HTTPS, cookies Secure e revisão operacional; não basta expor o MySQL.

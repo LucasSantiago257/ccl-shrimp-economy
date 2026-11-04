@@ -36,14 +36,17 @@ public class FinanceService {
     public Mono<Long> settle(List<Allocation> allocations,String method,LocalDateTime now,String actor) {
         Rules.require(allocations.stream().map(Allocation::titleId).distinct().count()==allocations.size(),"Não repita uma conta no pagamento.");
         var ordered=allocations.stream().sorted(Comparator.comparingLong(Allocation::titleId)).toList();
-        return Flux.fromIterable(ordered).concatMap(a -> sql.one("SELECT * FROM financial_titles WHERE id=:id FOR UPDATE",Map.of("id",a.titleId()))
+        return Flux.fromIterable(ordered).concatMap(a -> sql.one("SELECT * FROM title_positions WHERE id=:id FOR UPDATE",Map.of("id",a.titleId()))
             .switchIfEmpty(Mono.error(Rules.missing("Conta financeira não encontrada.")))
-            .flatMap(title -> sql.all("SELECT amount FROM settlement_allocations WHERE title_id=:id FOR UPDATE",Map.of("id",a.titleId()))
+            .flatMap(title -> {
+                Rules.require(title.get("cancelled_at")==null,"Este título foi cancelado.");
+                return sql.all("SELECT amount FROM allocation_events WHERE title_id=:id",Map.of("id",a.titleId()))
                 .map(row -> Sql.decimal(row,"amount")).reduce(BigDecimal.ZERO,BigDecimal::add)
                 .map(paid -> {
                     Rules.require(a.amount().compareTo(Sql.decimal(title,"amount").subtract(paid))<=0,"O pagamento excede o valor em aberto.");
                     return title;
-                }))).collectList().flatMap(titles -> {
+                });
+            })).collectList().flatMap(titles -> {
                 String party=partyKey(titles.getFirst());
                 Rules.require(titles.stream().allMatch(t -> party.equals(partyKey(t))),"Selecione contas da mesma pessoa e natureza.");
                 BigDecimal total=ordered.stream().map(Allocation::amount).reduce(BigDecimal.ZERO,BigDecimal::add);
@@ -75,19 +78,19 @@ public class FinanceService {
     }
     public Mono<PageResult> titles(String nature,long customerId,boolean openOnly,boolean purchasesOnly,PageQuery page) {
         Rules.require(nature.equals("RECEIVABLE")||nature.equals("PAYABLE"),"Natureza financeira inválida.");
-        return sql.page("SELECT t.*,COALESCE(c.name,s.name,e.description,CONCAT('Compra #',t.purchase_id,' · fornecedor não informado')) AS party_name,COALESCE(a.paid,0) AS paid,t.amount-COALESCE(a.paid,0) AS outstanding "
-            +"FROM financial_titles t LEFT JOIN customers c ON c.id=t.customer_id LEFT JOIN suppliers s ON s.id=t.supplier_id LEFT JOIN expenses e ON e.id=t.expense_id "
-            +"LEFT JOIN (SELECT title_id,SUM(amount) paid FROM settlement_allocations GROUP BY title_id) a ON a.title_id=t.id "
-            +"WHERE t.nature=:nature AND (:customer=0 OR t.customer_id=:customer) AND (:openOnly=0 OR t.amount>COALESCE(a.paid,0)) AND (:purchasesOnly=0 OR t.purchase_id IS NOT NULL) AND (COALESCE(c.name,s.name,e.description,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(t.id AS CHAR) LIKE :q ESCAPE '!' OR CAST(COALESCE(t.sale_id,t.purchase_id,t.expense_id) AS CHAR) LIKE :q ESCAPE '!')",
+        return sql.page("SELECT t.*,COALESCE(c.name,s.name,e.description,CONCAT('Compra #',t.purchase_id,' · fornecedor não informado')) AS party_name,COALESCE(a.paid,0) AS paid,IF(t.cancelled_at IS NULL,t.amount,0)-COALESCE(a.paid,0) AS outstanding "
+            +"FROM title_positions t LEFT JOIN customers c ON c.id=t.customer_id LEFT JOIN suppliers s ON s.id=t.supplier_id LEFT JOIN expenses e ON e.id=t.expense_id "
+            +"LEFT JOIN (SELECT title_id,SUM(amount) paid FROM allocation_events GROUP BY title_id) a ON a.title_id=t.id "
+            +"WHERE t.nature=:nature AND (:customer=0 OR t.customer_id=:customer) AND (:openOnly=0 OR IF(t.cancelled_at IS NULL,t.amount,0)>COALESCE(a.paid,0)) AND (:purchasesOnly=0 OR t.purchase_id IS NOT NULL) AND (COALESCE(c.name,s.name,e.description,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(t.id AS CHAR) LIKE :q ESCAPE '!' OR CAST(COALESCE(t.sale_id,t.purchase_id,t.expense_id) AS CHAR) LIKE :q ESCAPE '!')",
             "t.due_date,t.id",Map.of("nature",nature,"customer",customerId,"openOnly",openOnly?1:0,"purchasesOnly",purchasesOnly?1:0,"q",page.like()),page,"amount","paid","outstanding");
     }
     public Mono<PageResult> settlements(long customerId,PageQuery page) {
-        return sql.page("SELECT s.*,GROUP_CONCAT(CONCAT('#',a.title_id,': ',a.amount) ORDER BY a.title_id SEPARATOR '; ') AS allocations "
-            +"FROM settlements s JOIN settlement_allocations a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id "
+        return sql.page("SELECT s.*,MAX(c.id) AS correction_id,GROUP_CONCAT(CONCAT('#',a.title_id,': ',a.amount) ORDER BY a.title_id SEPARATOR '; ') AS allocations "
+            +"FROM settlements s LEFT JOIN corrections c ON c.kind='PAYMENT' AND c.source_id=s.id JOIN settlement_allocations a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id "
             +"WHERE (:customer=0 OR t.customer_id=:customer) AND (CAST(s.id AS CHAR) LIKE :q ESCAPE '!' OR EXISTS(SELECT 1 FROM settlement_allocations ax JOIN financial_titles tx ON tx.id=ax.title_id LEFT JOIN customers c ON c.id=tx.customer_id LEFT JOIN suppliers p ON p.id=tx.supplier_id LEFT JOIN expenses e ON e.id=tx.expense_id WHERE ax.settlement_id=s.id AND (COALESCE(c.name,p.name,e.description,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(tx.id AS CHAR) LIKE :q ESCAPE '!'))) GROUP BY s.id",
             "s.id DESC",Map.of("customer",customerId,"q",page.like()),page);
     }
     public Mono<PageResult> expenses(PageQuery page) {
-        return sql.page("SELECT * FROM expenses WHERE description LIKE :q ESCAPE '!' OR category LIKE :q ESCAPE '!' OR CAST(id AS CHAR) LIKE :q ESCAPE '!'","id DESC",Map.of("q",page.like()),page,"total");
+        return sql.page("SELECT e.*,c.id AS correction_id FROM expenses e LEFT JOIN corrections c ON c.kind='EXPENSE' AND c.source_id=e.id WHERE description LIKE :q ESCAPE '!' OR category LIKE :q ESCAPE '!' OR CAST(e.id AS CHAR) LIKE :q ESCAPE '!'","e.id DESC",Map.of("q",page.like()),page,"total");
     }
 }

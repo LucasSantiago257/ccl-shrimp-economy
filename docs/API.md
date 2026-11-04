@@ -20,6 +20,8 @@ Formato (itens abreviados):
 
 Relatórios, snapshots completos e itens de um documento continuam com seus formatos próprios, sem cortes por paginação.
 
+Compras e vendas aceitam `from` e `to` inclusivos, opcionais em conjunto, para intervalos de até dez anos em America/Bahia. A lista contém documentos emitidos no período. Seu `summary` contém totais de todos os eventos do filtro, incluindo estornos na data da correção: `total`, `quantity`, `gross_total`, `discount_amount`, `registered_total`, `reversed_total` e `reversed_quantity`. Consulte [Correções](CORRECOES.md) para o fluxo, dependências e endpoints.
+
 ## Autenticação
 
 1. GET `/api/auth/csrf`: retorna `token` e `header`, e inicia a sessão.

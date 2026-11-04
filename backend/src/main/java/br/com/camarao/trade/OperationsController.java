@@ -22,8 +22,8 @@ public class OperationsController {
     public OperationsController(TradeService trade,FinanceService finance,StockOperations stock,ReportService reports) {
         this.trade=trade;this.finance=finance;this.stock=stock;this.reports=reports;
     }
-    @GetMapping("/sales") public Mono<PageResult> sales(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return trade.list(true,new PageQuery(page,size,q)); }
-    @GetMapping("/purchases") public Mono<PageResult> purchases(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return trade.list(false,new PageQuery(page,size,q)); }
+    @GetMapping("/sales") public Mono<PageResult> sales(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q,@RequestParam(required=false) LocalDate from,@RequestParam(required=false) LocalDate to) { return trade.list(true,new PageQuery(page,size,q),from,to); }
+    @GetMapping("/purchases") public Mono<PageResult> purchases(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q,@RequestParam(required=false) LocalDate from,@RequestParam(required=false) LocalDate to) { return trade.list(false,new PageQuery(page,size,q),from,to); }
     @GetMapping("/sales/{id}/items") public Flux<Map<String,Object>> saleItems(@PathVariable long id) { return trade.items(true,id); }
     @GetMapping("/purchases/{id}/items") public Flux<Map<String,Object>> purchaseItems(@PathVariable long id) { return trade.items(false,id); }
     @PostMapping("/sales") public Mono<Map<String,Long>> sale(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody TradeService.Trade body,Principal actor) {

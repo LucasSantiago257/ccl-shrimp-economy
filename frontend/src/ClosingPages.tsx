@@ -24,6 +24,7 @@ const columns: Record<string, string> = { original_amount: 'Valor original', kin
 const sections: [string, string, string[]][] = [
   ['corrections', 'Correções do período', ['id','kind','source_id','original_amount','reason','created_by','occurred_at']],
   ['financial_adjustments', 'Estornos financeiros', ['id','settlement_id','direction','amount','reason','occurred_at']],
+  ['allocation_reversals', 'Estornos automáticos de pagamentos', ['id','correction_id','settlement_id','title_id','amount','occurred_at']],
   ['correction_stock', 'Estornos de estoque', ['id','correction_id','movement_id']],
   ['correction_replacements', 'Lançamentos substitutos', ['correction_id','kind','source_id','created_by','occurred_at']],
   ['sales', 'Vendas', ['id', 'customer_name', 'gross_total', 'discount_amount', 'total', 'cost_total', 'occurred_at']],

@@ -88,9 +88,9 @@ Para testar especificamente a automação com relógio controlado, Java 21, Mave
 
 ## Correção de lançamentos
 
-Na lista de compras, vendas, despesas, pagamentos ou perdas, localize o registro e clique em **Cancelar**. Informe o motivo, avance em **Conferir cancelamento**, confira os efeitos e confirme. A janela exibe **Cancelamento concluído** e o botão **Concluir** encerra o fluxo. O estorno entra na data atual, que precisa estar aberta.
+Na lista de compras, vendas, despesas, pagamentos ou perdas, localize o registro e clique em **Cancelar**. A mesma janela mostra os efeitos, o valor do estorno automático e o campo de motivo. Clique em **Confirmar cancelamento** para concluir. O ajuste entra na data atual, que precisa estar aberta.
 
-Quando houver pagamentos ou movimentos de estoque dependentes, a própria janela apresenta a próxima etapa. Depois de conferir e cancelar o registro dependente, use **Continuar cancelamento** para voltar ao original. Cada registro depende de confirmação explícita. Um pagamento pode abranger várias contas; elas aparecem na conferência. Os movimentos de estoque seguem do mais recente para o mais antigo.
+Cancelar uma compra, venda ou despesa estorna automaticamente os valores já pagos ou recebidos e cancela o saldo pendente. Se um pagamento abranger outras contas, somente a parte do documento cancelado é estornada. O registro financeiro mostra o valor estornado e permite cancelar separadamente apenas o valor restante. Quando houver movimentos de estoque posteriores, a janela ainda orienta a sequência necessária para preservar o custo médio.
 
 Para registrar os dados corretos depois de cancelar, clique em **Registrar dados corretos**. O formulário abre na tela de origem e o vínculo é feito automaticamente ao salvar. Para pagamentos, selecione a conta no Financeiro. A criação e o vínculo são confirmados juntos. Em **Resultados → Correções**, consulte o histórico e retome esse fluxo pelo botão **Ver cancelamento**. Esta versão trata erros de registro; devoluções reais de mercadoria e reembolsos ainda exigem um fluxo próprio.
 

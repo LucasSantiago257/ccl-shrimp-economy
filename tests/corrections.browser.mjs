@@ -30,12 +30,11 @@ try {
  }
  const dialog=()=>page.getByRole('dialog');
  async function confirm(reason) {
-   const next=dialog().getByRole('button',{name:'Conferir cancelamento',exact:true});
+   const next=dialog().getByRole('button',{name:'Confirmar cancelamento',exact:true});
    await next.waitFor();
    assert.equal(await next.isDisabled(),true);
    await dialog().getByLabel('Por que deseja cancelar?',{exact:true}).fill(reason);
    await next.click();
-   await dialog().getByRole('button',{name:'Confirmar cancelamento',exact:true}).click();
    await dialog().getByText('Cancelamento concluído',{exact:true}).waitFor();
  }
  const tag=randomUUID().slice(0,8);
@@ -44,9 +43,8 @@ try {
  await navigate('Despesas');
  const row=page.getByRole('row').filter({hasText:description});
  await row.getByRole('button',{name:'Cancelar',exact:true}).click();
- await dialog().getByRole('button',{name:'Conferir pagamento vinculado',exact:true}).click();
- await confirm('Pagamento do registro incorreto');
- await dialog().getByRole('button',{name:'Continuar cancelamento de Despesa #'+original.id,exact:true}).click();
+ await dialog().getByText('Estorno automático de R$ 5,00',{exact:true}).waitFor();
+ assert.equal(await dialog().getByRole('button',{name:/Conferir pagamento vinculado/}).count(),0);
  await confirm('Valor digitado incorretamente');
  await dialog().getByRole('button',{name:'Registrar dados corretos',exact:true}).click();
  await dialog().getByRole('heading',{name:'Nova despesa',exact:true}).waitFor();
@@ -57,7 +55,7 @@ try {
  const history=await get('/corrections?size=100');
  const correction=history.items.find(c=>c.kind==='EXPENSE'&&c.source_id===original.id);
  assert.ok(correction.replacement_id,'Vínculo automático ao salvar');
- assert.equal(history.items.filter(c=>c.kind==='PAYMENT').length>=1,true);
+ assert.ok(!history.items.some(c=>c.kind==='PAYMENT'&&c.reason==='Pagamento do registro incorreto'));
  await navigate('Correções');
  assert.equal(await page.getByLabel('Número do lançamento',{exact:true}).count(),0);
  await page.getByLabel('Buscar correções',{exact:true}).fill('Valor digitado incorretamente');
@@ -69,10 +67,6 @@ try {
  await page.getByRole('row').filter({hasText:'Duplicidade '+tag}).getByRole('button',{name:'Cancelar',exact:true}).click();
  await page.setViewportSize({width:390,height:844});
  await dialog().getByLabel('Por que deseja cancelar?',{exact:true}).fill('Registro duplicado');
- await dialog().getByRole('button',{name:'Conferir cancelamento',exact:true}).click();
- await dialog().getByRole('button',{name:'Voltar e alterar motivo',exact:true}).click();
- assert.equal(await dialog().getByLabel('Por que deseja cancelar?',{exact:true}).inputValue(),'Registro duplicado');
- await dialog().getByRole('button',{name:'Conferir cancelamento',exact:true}).click();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await mkdir(new URL('../docs/previews/',import.meta.url),{recursive:true});
  await dialog().screenshot({path:new URL('../docs/previews/cancel-flow-mobile.png',import.meta.url).pathname.replace(/^\/([A-Z]:)/,'$1'),animations:'disabled'});
@@ -84,20 +78,22 @@ try {
  // Stock dependencies retain a path back to the original purchase.
  const product=(await post('/products',{code:'FLOW-'+tag,name:'Camarão fluxo '+tag,suggestedPrice:'50',minimumStock:'0',active:true})).id;
  const customer=(await post('/customers',{name:'Cliente fluxo '+tag,phone:'',document:'',notes:'',active:true})).id;
- const purchase=await post('/purchases',{items:[{productId:product,quantity:'2',unitPrice:'30'}],paidAmount:'0',method:'PIX',dueDate:day});
- const sale=await post('/sales',{partyId:customer,items:[{productId:product,quantity:'1',unitPrice:'50'}],paidAmount:'0',method:'PIX',dueDate:day});
+ const purchase=await post('/purchases',{items:[{productId:product,quantity:'2',unitPrice:'30'}],paidAmount:'12',method:'PIX',dueDate:day});
+ const sale=await post('/sales',{partyId:customer,items:[{productId:product,quantity:'1',unitPrice:'50'}],paidAmount:'10',method:'PIX',dueDate:day});
  await navigate('Compras');
  await page.getByRole('row').filter({hasText:'#'+String(purchase.id).padStart(4,'0')}).getByRole('button',{name:'Cancelar',exact:true}).click();
  await dialog().getByRole('button',{name:'Conferir venda mais recente',exact:true}).click();
  await dialog().getByText('Etapa necessária para cancelar Compra #'+purchase.id,{exact:true}).waitFor();
+ await dialog().getByText('Estorno automático de R$ 10,00',{exact:true}).waitFor();
  await confirm('Venda dependente do registro errado');
  await dialog().getByRole('button',{name:'Continuar cancelamento de Compra #'+purchase.id,exact:true}).click();
+ await dialog().getByText('Estorno automático de R$ 12,00',{exact:true}).waitFor();
  await confirm('Compra registrada incorretamente');
  await dialog().getByRole('button',{name:'Concluir',exact:true}).click();
  assert.ok((await get('/corrections?size=100')).items.some(c=>c.kind==='SALE'&&c.source_id===sale.id));
  const denied=await page.request.post(base+'/api/v1/corrections/EXPENSE/'+original.id,{headers:{'Idempotency-Key':randomUUID()},data:{reason:'Sem token de segurança'}});
  assert.equal(denied.status(),403);
  assert.deepEqual(errors,[]);
- console.log('OK: cancelamento em duas etapas, retorno após pagamentos e estoque, conclusão simples, vínculo automático e celular.');
+ console.log('OK: confirmação única, estorno financeiro automático de compra/venda/despesa, vínculo automático e celular.');
 } finally {await browser.close();}
 

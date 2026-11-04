@@ -123,3 +123,11 @@ A regressão de API aprovou novamente 24 cenários gerais, 17 de desconto/pagina
 A ação na lista passou a ser Cancelar. O fluxo tem motivo, conferência dos efeitos e conclusão. Pagamentos e movimentos dependentes são apresentados uma etapa por vez, com retorno ao registro original. A conclusão simples encerra o cancelamento. Registrar dados corretos abre o formulário normal e cria o vínculo automaticamente, na mesma transação do novo lançamento.
 
 CorrectionDatabaseTest aprovou o fluxo transacional com reenvio idempotente, recusa de segundo substituto e falha provocada na gravação do vínculo. A falha confirmou rollback do novo documento e do estoque. O teste de navegador aprovou cancelamento de despesa paga com retorno da etapa financeira, alteração de motivo, conclusão sem substituto, criação de despesa correta com vínculo automático e cancelamento de compra com retorno da venda dependente. O layout de 390 px e os erros JavaScript foram verificados. O build Java/TypeScript e os 24 cenários gerais de integração passaram.
+
+## Estorno financeiro automático — 04/11/2026
+
+A V6 adiciona estornos por alocação, preserva o histórico anterior e atualiza os eventos de caixa e baixas. Cancelar compras, vendas e despesas passou a estornar os valores já pagos na mesma transação. A interface usa uma janela com efeitos, motivo e confirmação, sem etapa separada para o pagamento.
+
+O teste de MySQL conferiu pagamentos parciais, pagamentos compartilhados, cancelamento posterior do saldo restante, histórico de datas anteriores, snapshots e rollback financeiro quando um segundo item de estoque falha. Uma venda com R$ 20 pagos e outra com R$ 30 pagos compartilhavam um recebimento de R$ 50: cancelar a primeira estornou R$ 20 e preservou os R$ 30 da segunda. Cancelar depois o registro financeiro estornou apenas os R$ 30 restantes.
+
+O navegador aprovou estorno automático de compra, venda e despesa, com valor informado na confirmação única, vínculo do registro correto e layout móvel. Os testes unitários, compilação Java e TypeScript e a regressão de compras/vendas/pagamentos foram aprovados.

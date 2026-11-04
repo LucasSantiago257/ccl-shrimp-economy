@@ -85,8 +85,8 @@ public class FinanceService {
             "t.due_date,t.id",Map.of("nature",nature,"customer",customerId,"openOnly",openOnly?1:0,"purchasesOnly",purchasesOnly?1:0,"q",page.like()),page,"amount","paid","outstanding");
     }
     public Mono<PageResult> settlements(long customerId,PageQuery page) {
-        return sql.page("SELECT s.*,MAX(c.id) AS correction_id,GROUP_CONCAT(CONCAT('#',a.title_id,': ',a.amount) ORDER BY a.title_id SEPARATOR '; ') AS allocations "
-            +"FROM settlements s LEFT JOIN corrections c ON c.kind='PAYMENT' AND c.source_id=s.id JOIN settlement_allocations a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id "
+        return sql.page("SELECT s.*,MAX(c.id) AS correction_id,IF(MAX(c.id) IS NULL,s.amount-COALESCE(MAX(r.amount),0),0) AS remaining_amount,IF(MAX(c.id) IS NULL,COALESCE(MAX(r.amount),0),s.amount) AS reversed_amount,GROUP_CONCAT(CONCAT('#',a.title_id,': ',a.amount) ORDER BY a.title_id SEPARATOR '; ') AS allocations "
+            +"FROM settlements s LEFT JOIN corrections c ON c.kind='PAYMENT' AND c.source_id=s.id LEFT JOIN (SELECT settlement_id,SUM(amount) amount FROM allocation_reversals GROUP BY settlement_id) r ON r.settlement_id=s.id JOIN settlement_allocations a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id "
             +"WHERE (:customer=0 OR t.customer_id=:customer) AND (CAST(s.id AS CHAR) LIKE :q ESCAPE '!' OR EXISTS(SELECT 1 FROM settlement_allocations ax JOIN financial_titles tx ON tx.id=ax.title_id LEFT JOIN customers c ON c.id=tx.customer_id LEFT JOIN suppliers p ON p.id=tx.supplier_id LEFT JOIN expenses e ON e.id=tx.expense_id WHERE ax.settlement_id=s.id AND (COALESCE(c.name,p.name,e.description,'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(tx.id AS CHAR) LIKE :q ESCAPE '!'))) GROUP BY s.id",
             "s.id DESC",Map.of("customer",customerId,"q",page.like()),page);
     }

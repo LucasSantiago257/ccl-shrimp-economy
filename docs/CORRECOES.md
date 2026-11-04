@@ -8,7 +8,7 @@ Cada correção é uma transação reativa sob business_guard, com a mesma polí
 
 ## Dependências
 
-Antes de cancelar uma compra, venda ou despesa, o usuário cancela os pagamentos vinculados que ainda estiverem ativos. O cancelamento de um pagamento reabre todas as contas de sua alocação e estorna seu registro de caixa, na data atual.
+Cancelar uma compra, venda ou despesa estorna os valores já pagos automaticamente na mesma transação. A V6 registra cada parcela estornada em allocation_reversals, vinculada à correção. Em pagamentos compartilhados, as alocações de outros documentos permanecem pagas. Cancelar o pagamento separadamente estorna somente as parcelas ainda ativas.
 
 Antes de cancelar um documento que alterou estoque, todos os movimentos posteriores ativos de cada produto devem estar corrigidos. O cancelamento em ordem inversa restaura o valor exato de cada movimento, incluindo consumo pelo custo médio e perdas. Produtos inativos também podem ter seus erros cancelados. Quantidade e valor negativos são recusados. Se qualquer item falhar, nenhum saldo ou estorno é confirmado.
 

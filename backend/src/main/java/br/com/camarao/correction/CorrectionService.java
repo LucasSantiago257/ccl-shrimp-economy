@@ -45,6 +45,9 @@ public class CorrectionService {
         } else if(kind==Kind.PURCHASE) {
             fields+=",COALESCE(p.name,'Fornecedor não informado') AS party_name";
             join=" LEFT JOIN suppliers p ON p.id=d.supplier_id";
+        } else if(kind==Kind.PAYMENT) {
+            fields+=",d.amount-COALESCE(r.amount,0) AS remaining_amount";
+            join=" LEFT JOIN (SELECT settlement_id,SUM(amount) amount FROM allocation_reversals GROUP BY settlement_id) r ON r.settlement_id=d.id";
         }
         return sql.one("SELECT "+fields+" FROM "+table(kind)+" d"+join+" WHERE d.id=:id",Map.of("id",id))
             .switchIfEmpty(Mono.error(Rules.missing("Lançamento não encontrado.")))
@@ -73,7 +76,7 @@ public class CorrectionService {
 
     private Mono<List<Map<String,Object>>> payments(Kind kind,long id) {
         if(kind==Kind.PAYMENT || kind==Kind.LOSS) return Mono.just(List.of());
-        return sql.all("SELECT DISTINCT s.id,s.direction,s.amount FROM settlements s JOIN settlement_allocations a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id LEFT JOIN corrections c ON c.kind='PAYMENT' AND c.source_id=s.id WHERE t."+titleColumn(kind)+"=:id AND c.id IS NULL ORDER BY s.id",Map.of("id",id)).collectList();
+        return sql.all("SELECT s.id,s.direction,SUM(a.amount) AS amount FROM settlements s JOIN allocation_events a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id WHERE t."+titleColumn(kind)+"=:id GROUP BY s.id HAVING SUM(a.amount)>0 ORDER BY s.id",Map.of("id",id)).collectList();
     }
 
     private Mono<List<Map<String,Object>>> dependencies(List<Map<String,Object>> movements) {
@@ -96,7 +99,7 @@ public class CorrectionService {
 
     private Mono<List<Map<String,Object>>> allocations(Kind kind,long id) {
         if(kind!=Kind.PAYMENT) return Mono.just(List.of());
-        return sql.all("SELECT a.title_id,a.amount,t.sale_id,t.purchase_id,t.expense_id FROM settlement_allocations a JOIN financial_titles t ON t.id=a.title_id WHERE a.settlement_id=:id ORDER BY a.title_id",Map.of("id",id)).collectList();
+        return sql.all("SELECT a.title_id,SUM(a.amount) AS amount,t.sale_id,t.purchase_id,t.expense_id FROM allocation_events a JOIN financial_titles t ON t.id=a.title_id WHERE a.settlement_id=:id GROUP BY a.title_id HAVING SUM(a.amount)>0 ORDER BY a.title_id",Map.of("id",id)).collectList();
     }
 
     @Transactional
@@ -108,16 +111,27 @@ public class CorrectionService {
     }
 
     private Mono<Long> performCancellation(Kind kind,long id,String reason,String actor,LocalDateTime now) {
-        return source(kind,id).then(requireUncancelled(kind,id)).then(payments(kind,id)).flatMap(payments -> {
-            if(!payments.isEmpty()) throw Rules.conflict("Cancele primeiro os pagamentos vinculados: "+payments.stream().map(p -> "#"+p.get("id")).toList()+". Confira todas as contas abrangidas pelo pagamento.");
-            return movements(kind,id);
-        }).flatMap(stock -> dependencies(stock).flatMap(later -> {
+        return source(kind,id).flatMap(original -> {
+            if(kind==Kind.PAYMENT) Rules.require(Sql.decimal(original,"remaining_amount").signum()>0,"Este pagamento já foi integralmente estornado.");
+            return requireUncancelled(kind,id);
+        }).then(movements(kind,id)).flatMap(stock -> dependencies(stock).flatMap(later -> {
             if(!later.isEmpty()) throw Rules.conflict("Há movimentos posteriores deste produto. Corrija-os primeiro, do mais recente para o mais antigo. Consulte a prévia.");
             return sql.insert("INSERT INTO corrections(kind,source_id,reason,occurred_at,created_by) VALUES(:kind,:id,:reason,:at,:actor)",
                 Map.of("kind",kind.name(),"id",id,"reason",reason,"at",now,"actor",actor))
-                .flatMap(correctionId -> Flux.fromIterable(stock)
-                    .concatMap(m -> reverseStock(correctionId,m)).then(Mono.just(correctionId)));
+                .flatMap(correctionId -> reversePayments(correctionId,kind,id)
+                    .thenMany(Flux.fromIterable(stock).concatMap(m -> reverseStock(correctionId,m)))
+                    .then(Mono.just(correctionId)));
         }));
+    }
+
+    private Mono<Void> reversePayments(long correctionId,Kind kind,long id) {
+        if(kind==Kind.PAYMENT || kind==Kind.LOSS) return Mono.empty();
+        return sql.all("SELECT a.settlement_id,a.title_id,SUM(a.amount) AS amount FROM allocation_events a "
+            +"JOIN financial_titles t ON t.id=a.title_id WHERE t."+titleColumn(kind)+"=:id "
+            +"GROUP BY a.settlement_id,a.title_id HAVING SUM(a.amount)>0",
+            Map.of("id",id)).concatMap(allocation -> sql.insert(
+                "INSERT INTO allocation_reversals(correction_id,settlement_id,title_id,amount) VALUES(:correction,:settlement,:title,:amount)",
+                Map.of("correction",correctionId,"settlement",allocation.get("settlement_id"),"title",allocation.get("title_id"),"amount",allocation.get("amount")))).then();
     }
 
     private Mono<Void> requireUncancelled(Kind kind,long id) {

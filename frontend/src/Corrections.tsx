@@ -16,7 +16,7 @@ interface Correction {
   occurred_at:string; created_by:string; replacement_id?:number;
 }
 interface Preview {
-  original:{ amount?:Num; total?:Num; occurred_at:string; direction?:string; description?:string; party_name?:string };
+  original:{ amount?:Num; remaining_amount?:Num; total?:Num; occurred_at:string; direction?:string; description?:string; party_name?:string };
   correction:Partial<Correction>;
   stock:{ id:number; product_name:string; quantity_delta:Num }[];
   payments:{ id:number; amount:Num; direction:string }[];
@@ -33,15 +33,20 @@ export function CorrectionAction({kind,id,cancelled=false}:CorrectionTarget & {c
 }
 
 function Effects({data,target}: {data:Preview;target:CorrectionTarget}) {
+  const refund=data.payments.reduce((sum,p)=>sum+Number(p.amount),0);
+  const outstanding=Number(data.original.total||0)-refund;
   return <div className="cancel-effects">
     {data.stock.map(item=><p key={item.id}><strong>{item.product_name}</strong><br/>
       {Number(item.quantity_delta)<0?'Voltam '+kg(-Number(item.quantity_delta))+' ao estoque.':'Saem '+kg(item.quantity_delta)+' do estoque.'}</p>)}
     {target.kind==='PAYMENT' ? <>
-      <p>O {data.original.direction==='IN'?'recebimento':'pagamento'} de <strong>{money(data.original.amount)}</strong> será retirado dos registros de caixa.</p>
+      <p>O saldo de <strong>{money(data.original.remaining_amount ?? data.original.amount)}</strong> deste {data.original.direction==='IN'?'recebimento':'pagamento'} será estornado.</p>
       <p>Os valores abaixo voltarão a ficar em aberto.</p>
       <ul>{data.allocations.map(a=><li key={a.title_id}>{a.sale_id?'Venda #'+a.sale_id:a.purchase_id?'Compra #'+a.purchase_id:a.expense_id?'Despesa #'+a.expense_id:'Conta #'+a.title_id} · {money(a.amount)}</li>)}</ul>
-    </> : ['SALE','PURCHASE','EXPENSE'].includes(target.kind) &&
-      <p>A {target.kind==='SALE'?'cobrança do cliente':'conta a pagar'} de <strong>{money(data.original.total)}</strong> será cancelada.</p>}
+    </> : ['SALE','PURCHASE','EXPENSE'].includes(target.kind) && <>
+      {refund>0 && <p className="alert info"><strong>Estorno automático de {money(refund)}</strong><br/>
+        O valor já {target.kind==='SALE'?'recebido':'pago'} será estornado junto com o cancelamento.</p>}
+      {outstanding>0 && <p>O saldo {target.kind==='SALE'?'a receber':'a pagar'} de <strong>{money(outstanding)}</strong> será cancelado.</p>}
+    </>}
     <p className="subtle">O ajuste será registrado hoje. Fechamentos anteriores continuam preservados.</p>
   </div>;
 }
@@ -51,10 +56,8 @@ function CancellationStep({target,parent,revision,reason,setReason,back,resolve,
   back:()=>void; resolve:(target:CorrectionTarget)=>void; close:()=>void; saved:()=>void; recreate:(request:ReplacementRequest)=>void;
 }) {
   const preview=useResource<Preview>('/api/v1/corrections/'+target.kind+'/'+target.id+'/preview',revision);
-  const [stage,setStage]=useState<'reason'|'review'>('reason');
   const data=preview.data;
   if(!data) return <Status loading={preview.loading} error={preview.error}/>;
-  const payment=data.payments[0];
   const movement=[...data.dependencies].sort((a,b)=>b.id-a.id)[0];
   const cancelled=!!data.correction.id;
   const subject=target.kind==='PAYMENT'?(data.original.direction==='IN'?'Recebimento':'Pagamento'):names[target.kind];
@@ -76,35 +79,21 @@ function CancellationStep({target,parent,revision,reason,setReason,back,resolve,
             {!data.correction.replacement_id && <button className="button primary" onClick={()=>recreate({correctionId:data.correction.id!,kind:target.kind,sourceId:target.id})}>Registrar dados corretos</button>}
           </div>
         </>}
-    </> : payment || movement ? <div className="cancel-pending">
+    </> : movement ? <div className="cancel-pending">
       <h3>Precisamos resolver uma etapa antes</h3>
-      {payment ? <>
-        <p>Este registro tem um {payment.direction==='IN'?'recebimento':'pagamento'} de <strong>{money(payment.amount)}</strong> vinculado.</p>
-        <p>Confira o cancelamento desse valor primeiro. Em seguida, o sistema traz você de volta para {title}.</p>
-        <button className="button primary" onClick={()=>resolve({kind:'PAYMENT',id:payment.id})}>Conferir {payment.direction==='IN'?'recebimento':'pagamento'} vinculado</button>
-      </> : movement && <>
+      <>
         <p>O estoque deste registro foi utilizado ou movimentado depois.</p>
         <p>Confira primeiro {names[movement.type].toLowerCase()} #{movement.source_id}, o registro mais recente. O sistema trará você de volta ao terminar.</p>
         <button className="button primary" onClick={()=>resolve({kind:movement.type,id:movement.source_id})}>Conferir {names[movement.type].toLowerCase()} mais recente</button>
-      </>}
+      </>
       <p className="subtle">Cada etapa exige sua confirmação. O registro atual ainda está ativo.</p>
     </div> : <>
-      <ol className="cancel-steps" aria-label="Etapas do cancelamento">
-        <li aria-current={stage==='reason'?'step':undefined}>1. Motivo</li><li aria-current={stage==='review'?'step':undefined}>2. Conferir e cancelar</li>
-      </ol>
-      {stage==='reason' ? <form onSubmit={e=>{e.preventDefault();setStage('review');}}>
-        <Field label="Por que deseja cancelar?"><textarea required minLength={5} maxLength={500} rows={3} value={reason} onChange={e=>setReason(e.target.value)} placeholder="Ex.: valor digitado errado ou registro duplicado"/></Field>
-        <div className="cancel-actions"><button type="button" className="button secondary" onClick={parent?back:close}>Voltar</button>
-          <button className="button primary" disabled={reason.trim().length<5}>Conferir cancelamento</button></div>
-      </form> : <>
-        <h3>Confira o que vai acontecer</h3><Effects data={data} target={target}/>
-        <p><strong>Motivo</strong><br/>{reason}</p>
+        <h3>Confira o cancelamento e o estorno</h3><Effects data={data} target={target}/>
         <MutationForm path={'/api/v1/corrections/'+target.kind+'/'+target.id} button="Confirmar cancelamento"
-          build={()=>({reason})} done={saved} valid={!preview.loading}
+          build={()=>({reason})} done={saved} valid={!preview.loading && reason.trim().length>=5}
           footerHint="O cancelamento ficará registrado no histórico." pendingLabel="Cancelando…">
-          <button type="button" className="text-button" onClick={()=>setStage('reason')}>Voltar e alterar motivo</button>
+          <Field label="Por que deseja cancelar?"><textarea required minLength={5} maxLength={500} rows={3} value={reason} onChange={e=>setReason(e.target.value)} placeholder="Ex.: valor digitado errado ou registro duplicado"/></Field>
         </MutationForm>
-      </>}
     </>}
   </div>;
 }

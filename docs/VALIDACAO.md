@@ -131,3 +131,13 @@ A V6 adiciona estornos por alocação, preserva o histórico anterior e atualiza
 O teste de MySQL conferiu pagamentos parciais, pagamentos compartilhados, cancelamento posterior do saldo restante, histórico de datas anteriores, snapshots e rollback financeiro quando um segundo item de estoque falha. Uma venda com R$ 20 pagos e outra com R$ 30 pagos compartilhavam um recebimento de R$ 50: cancelar a primeira estornou R$ 20 e preservou os R$ 30 da segunda. Cancelar depois o registro financeiro estornou apenas os R$ 30 restantes.
 
 O navegador aprovou estorno automático de compra, venda e despesa, com valor informado na confirmação única, vínculo do registro correto e layout móvel. Os testes unitários, compilação Java e TypeScript e a regressão de compras/vendas/pagamentos foram aprovados.
+
+## Perfil, recuperação e CSV — 04/11/2026
+
+A V7 adiciona a conta persistida no banco. O build aprovou 25 testes unitários; os dois testes de banco optativos ficam separados do build normal. Os testes de CSV verificam registros aninhados, aspas e delimitadores, proteção contra fórmulas de planilha e precisão decimal.
+
+O teste profile.browser.mjs confirmou troca exigindo senha atual, persistência após reiniciar o backend, invalidação de outra sessão aberta, recuperação via SMTP capturado localmente no Mailpit, abertura do link na mesma aba, remoção do token da URL, uso único e expiração. As credenciais originais do ambiente isolado foram restauradas pelo fluxo de senha ao concluir o teste. Nenhum e-mail foi enviado a destinatários reais.
+
+A regressão aprovou 24 cenários gerais, 17 de desconto/paginação, 13 de fechamento, correções, totais por período e navegação de snapshots em computador e celular. Os downloads do fechamento agora são CSV completos e continuam estáveis após mudanças dos cadastros. A integridade do snapshot de origem segue validada internamente.
+
+O envio real depende da configuração de SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM e APP_PUBLIC_URL. FALLBACK_MAIL é o destinatário fixo configurado pelo responsável no ambiente.

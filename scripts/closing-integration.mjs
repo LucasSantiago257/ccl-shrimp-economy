@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 
 const base = 'http://127.0.0.1:18080'; // Somente o ambiente de teste.
@@ -99,9 +99,12 @@ await test('Snapshot contém metadados, itens e posições financeiras preservad
   const second = await http('/api/v1/closings?page=2&size=1');
   assert.ok(first.hasNext); assert.notEqual(first.items[0].id, second.items[0].id);
 });
-await test('Arquivo JSON baixado corresponde exatamente ao SHA-256 preservado', async () => {
+await test('CSV exporta o snapshot preservado e mantém metadados de integridade', async () => {
   const download = await http(`/api/v1/closings/${closureId}/snapshot`, { raw: true }); rawSnapshot = download.text;
-  assert.equal(createHash('sha256').update(rawSnapshot).digest('hex'), captured.metadata.snapshot_sha256);
+  assert.match(captured.metadata.snapshot_sha256,/^[a-f0-9]{64}$/);
+  assert.match(download.headers.get('content-type'),/text\/csv/);
+  assert.match(rawSnapshot,/Seção;Registro;Campo;Valor/);
+  assert.ok(rawSnapshot.includes('titles['+(captured.snapshot.records.titles.length-1)+'].id'));
   assert.match(download.headers.get('content-disposition'), /attachment/);
 });
 await test('Mesmo fechamento é idempotente e duplicidade com nova chave é rejeitada', async () => {

@@ -31,4 +31,14 @@ server:
 app:
   username: ${APP_ADMIN_USERNAME:admin}
   password: ${APP_ADMIN_PASSWORD}
+  fallback-mail: ${FALLBACK_MAIL:}
+  public-url: ${APP_PUBLIC_URL:http://localhost:5173}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    from: ${MAIL_FROM:}
+    ssl: ${SMTP_SSL:true}
+    starttls: ${SMTP_STARTTLS:false}
   zone: America/Bahia

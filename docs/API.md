@@ -31,6 +31,15 @@ Compras e vendas aceitam `from` e `to` inclusivos, opcionais em conjunto, para i
 
 Depois de autenticar, obtenha novamente o CSRF antes dos comandos. O navegador inclui o cookie HttpOnly automaticamente. Não usar Basic Auth.
 
+## Perfil e recuperação
+
+- GET `/api/auth/profile` retorna usuário, e-mail de recuperação e indicador de envio configurado.
+- POST `/api/auth/password` recebe `currentPassword`, `password` e `confirmation`. Exige autenticação e CSRF. A senha é persistida no banco e a versão da conta é incrementada para revogar sessões antigas.
+- POST `/api/auth/password/reset-request` exige CSRF e envia instruções exclusivamente ao FALLBACK_MAIL. O link usa token aleatório de 256 bits, hash no banco, validade de 30 minutos e uso único. Enquanto existir um link válido, pedidos repetidos preservam esse link.
+- POST `/api/auth/password/reset` recebe `token`, `password` e `confirmation`, exige CSRF e revoga os acessos anteriores após concluir.
+
+As senhas aceitam pelo menos 12 caracteres e até 72 bytes UTF-8 para BCrypt. Login, alteração, solicitação e confirmação de recuperação têm limites de tentativas. O envio sem SMTP configurado retorna 503. O token é entregue no fragmento da URL pública configurada e removido do endereço pelo cliente ao abrir o formulário.
+
 ## Cadastros
 
 - GET/POST `/customers` e `/suppliers`; PUT `/{id}` para editar/inativar.
@@ -116,7 +125,7 @@ Datas são inclusivas no fuso America/Bahia. Pode fechar hoje ou datas anteriore
 O servidor fecha cada dia automaticamente às 23h59 nesse fuso, com autor `Sistema (automático)`. Nenhum comando HTTP é necessário. Novos lançamentos são recusados a partir desse horário, independentemente do progresso da captura. Após reiniciar, o servidor recupera dias pendentes desde a ativação; fechamentos manuais existentes são mantidos. A API de fechamento manual continua disponível para antecipar o encerramento ou fechar outros intervalos.
 
 - GET `/closings/{id}`: `{metadata,snapshot}`. Inclui intervalo, autor, horário, versão, SHA-256 e conteúdo congelado (relatório e registros).
-- GET `/closings/{id}/snapshot`: download do JSON original, com `Content-Disposition: attachment`. O SHA-256 é calculado sobre os bytes UTF-8 desse arquivo e pode ser comparado ao metadado `snapshot_sha256`.
+- GET `/closings/{id}/snapshot`: exporta CSV completo em UTF-8 com BOM, delimitador ponto e vírgula e colunas Seção, Registro, Campo e Valor. O conteúdo é gerado a partir do snapshot cuja integridade é verificada antes da exportação. O SHA-256 exibido identifica o registro interno preservado.
 - Leituras verificam a integridade. Não existem PUT/PATCH/DELETE para snapshots.
 
 Compras, vendas, pagamentos, despesas e perdas tentados em dia fechado retornam 409. A checagem e as gravações compartilham a transação do bloqueio, cobrindo concorrência. Reenvio idempotente de um comando que já havia sido concluído retorna seu ID original, sem novo lançamento.

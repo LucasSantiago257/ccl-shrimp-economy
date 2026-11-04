@@ -1,0 +1,16 @@
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '127.0.0.1:18025:8025'
+  backend:
+    environment:
+      FALLBACK_MAIL: profile-qa@example.test
+      APP_PUBLIC_URL: http://127.0.0.1:15173
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ''
+      SMTP_PASSWORD: ''
+      MAIL_FROM: mare-qa@example.test
+      SMTP_SSL: 'false'
+      SMTP_STARTTLS: 'false'

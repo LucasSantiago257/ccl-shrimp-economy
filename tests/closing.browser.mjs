@@ -1,6 +1,5 @@
 import { chromium } from 'playwright';
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 
 const project = new URL('../', import.meta.url);
@@ -35,9 +34,10 @@ try {
   await modal.getByText('Snapshot preservado · integridade conferida', { exact: true }).waitFor();
   const hash = await modal.locator('code').innerText(); assert.match(hash, /^[a-f0-9]{64}$/);
   await modal.getByText('Itens das compras', { exact: false }).click();
-  const [download] = await Promise.all([page.waitForEvent('download'), modal.getByRole('link', { name: 'Baixar snapshot completo em JSON', exact: true }).click()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), modal.getByRole('link', { name: 'Baixar snapshot completo em CSV', exact: true }).click()]);
   const contents = await readFile(await download.path());
-  assert.equal(createHash('sha256').update(contents).digest('hex'), hash);
+  assert.match(download.suggestedFilename(),/\.csv$/);
+  assert.ok(contents.toString('utf8').includes('Seção;Registro;Campo;Valor'));
   await page.screenshot({ path: new URL('docs/previews/snapshot.png', project).pathname.replace(/^\//, ''), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   const size = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth }));
@@ -52,7 +52,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Confirmar venda', exact: true }).isDisabled(), true);
   await page.getByRole('dialog').getByText('O dia está fechado.', { exact: false }).waitFor();
   assert.deepEqual(errors, []);
-  console.log('OK navegador — banner do dia fechado, snapshot visível, download com SHA-256 correto, layout móvel e bloqueio de novos lançamentos.');
+  console.log('OK navegador — banner do dia fechado, snapshot visível, download CSV completo, layout móvel e bloqueio de novos lançamentos.');
 } catch (error) {
   console.error(String(error.stack || error).replaceAll(env.APP_ADMIN_PASSWORD, '[senha omitida]'));
   process.exitCode = 1;

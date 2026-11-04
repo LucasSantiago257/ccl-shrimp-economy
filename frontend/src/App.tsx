@@ -7,6 +7,7 @@ import { PartnersPage, ProductsPage } from './CatalogPages';
 import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
 import { AnalyticsPage } from './AnalyticsPage';
+import { ProfilePage, RecoveryPage } from './ProfilePage';
 import { CorrectionContext, CorrectionModal, CorrectionsPage } from './Corrections';
 import type { CorrectionTarget } from './Corrections';
 import { ReplacementContext, postingPages } from './postingFlow';
@@ -14,6 +15,7 @@ import type { ReplacementRequest } from './postingFlow';
 
 const pages = [
   { id: 'dashboard', label: 'Visão geral', icon: 'dashboard', group: 'PRINCIPAL', description: 'Uma visão clara do seu negócio.' },
+  { id: 'profile', label: 'Perfil', icon: 'people', description: 'Sua conta e segurança de acesso.' },
   { id: 'customers', label: 'Clientes', icon: 'people', group: 'CADASTROS', description: 'Pessoas, histórico e valores a receber.' },
   { id: 'suppliers', label: 'Fornecedores', icon: 'people', description: 'Quem abastece o seu negócio.' },
   { id: 'products', label: 'Produtos', icon: 'box', description: 'Seu catálogo e os preços por quilo.' },
@@ -27,7 +29,7 @@ const pages = [
   { id: 'corrections', label: 'Correções', icon: 'report', description: 'Corrija erros com histórico e ajustes de estoque e financeiro.' },
 ];
 
-function Login({ onLogin }: { onLogin: (username: string) => void }) {
+function Login({ onLogin, onRecover }: { onLogin: (username: string) => void; onRecover:()=>void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError('');
@@ -35,10 +37,23 @@ function Login({ onLogin }: { onLogin: (username: string) => void }) {
     try { await api.login(String(data.get('username')), String(data.get('password'))); const user = await api.get<{ username: string }>('/api/auth/me'); onLogin(user.username); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  return <main className="login-page"><section className="login-story"><div className="brand"><span className="brand-mark"><Icon name="wave" size={28} /></span><span>maré<small>GESTÃO DO CAMARÃO</small></span></div><div><span className="eyebrow light">DO ESTOQUE AO RECEBIMENTO</span><h1>Seu negócio,<br />em boas águas.</h1><p>Compras, vendas e fiado organizados.<br />Mais clareza para cuidar de cada quilo.</p><div className="wave-art" aria-hidden="true"><Icon name="wave" size={190} /></div></div><small>Gestão simples. Decisões bem informadas.</small></section><section className="login-main"><form onSubmit={submit} className="login-card"><span className="eyebrow">BEM-VINDO À MARÉ</span><h2>Vamos começar?</h2><p>Entre para acompanhar o seu negócio.</p><label className="field"><span>Usuário</span><input name="username" autoComplete="username" required autoFocus /></label><label className="field"><span>Senha</span><input name="password" type="password" autoComplete="current-password" required /></label>{error && <p role="alert" className="alert error">{error}</p>}<button className="button primary" disabled={busy}>{busy ? 'Entrando…' : 'Entrar no sistema'}<Icon name="arrow" /></button><small className="subtle">Use as credenciais definidas na configuração local.</small></form></section></main>;
+  return <main className="login-page"><section className="login-story"><div className="brand"><span className="brand-mark"><Icon name="wave" size={28} /></span><span>maré<small>GESTÃO DO CAMARÃO</small></span></div><div><span className="eyebrow light">DO ESTOQUE AO RECEBIMENTO</span><h1>Seu negócio,<br />em boas águas.</h1><p>Compras, vendas e fiado organizados.<br />Mais clareza para cuidar de cada quilo.</p><div className="wave-art" aria-hidden="true"><Icon name="wave" size={190} /></div></div><small>Gestão simples. Decisões bem informadas.</small></section><section className="login-main"><form onSubmit={submit} className="login-card"><span className="eyebrow">BEM-VINDO À MARÉ</span><h2>Vamos começar?</h2><p>Entre para acompanhar o seu negócio.</p><label className="field"><span>Usuário</span><input name="username" autoComplete="username" required autoFocus /></label><label className="field"><span>Senha</span><input name="password" type="password" autoComplete="current-password" required /></label>{error && <p role="alert" className="alert error">{error}</p>}<button className="button primary" disabled={busy}>{busy ? 'Entrando…' : 'Entrar no sistema'}<Icon name="arrow" /></button><button type="button" className="text-button" onClick={onRecover}>Esqueci minha senha</button></form></section></main>;
 }
 
 export default function App() {
+  const [recovery,setRecovery]=useState<string | null>(()=>{
+    const match=window.location.hash.match(/^#reset-password=([A-Za-z0-9_-]+)$/);
+    if(match) return match[1];
+    return null;
+  });
+  useEffect(()=>{
+    const read=()=>{
+      const match=window.location.hash.match(/^#reset-password=([A-Za-z0-9_-]+)$/);
+      if(match){setRecovery(match[1]);window.history.replaceState(null,'',window.location.pathname);}
+    };
+    read();window.addEventListener('hashchange',read);
+    return ()=>window.removeEventListener('hashchange',read);
+  },[]);
   const [user, setUser] = useState<string | null>(null); const [checking, setChecking] = useState(true); const [error, setError] = useState('');
   async function check() {
     setChecking(true); setError('');
@@ -47,9 +62,10 @@ export default function App() {
     finally { setChecking(false); }
   }
   useEffect(() => { void check(); const expired = () => setUser(null); window.addEventListener('session-expired', expired); return () => window.removeEventListener('session-expired', expired); }, []);
+  if(recovery!==null) return <RecoveryPage key={recovery||'request'} token={recovery||undefined} back={()=>{setRecovery(null);setUser(null);}}/>;
   if (checking) return <main className="boot" role="status"><Icon name="wave" size={44} /><p>Preparando a Maré…</p></main>;
   if (error) return <main className="boot"><p role="alert">{error}</p><button className="button primary" onClick={() => void check()}>Tentar novamente</button></main>;
-  return user ? <Shell username={user} signOut={() => setUser(null)} /> : <Login onLogin={setUser} />;
+  return user ? <Shell username={user} signOut={() => setUser(null)} /> : <Login onLogin={setUser} onRecover={()=>setRecovery('')} />;
 }
 
 function Shell({ username, signOut }: { username: string; signOut: () => void }) {
@@ -73,7 +89,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
   return <ReplacementContext.Provider value={{request:replacement,cancel:()=>setReplacement(null),complete:()=>setReplacement(null)}}>
     <CorrectionContext.Provider value={target => setCorrection(target)}><div className="app-shell">
     {menu && <button className="menu-backdrop" aria-label="Fechar menu" onClick={() => setMenu(false)} />}
-    <aside className={'sidebar ' + (menu ? 'open' : '')}><div className="brand"><span className="brand-mark"><Icon name="wave" size={27} /></span><span>maré<small>GESTÃO DO CAMARÃO</small></span></div><nav aria-label="Navegação principal">{pages.map(p => <div key={p.id}>{p.group && <div className="nav-group">{p.group}</div>}<button className={'nav-item ' + (page === p.id ? 'active' : '')} onClick={() => navigate(p.id)} aria-current={page === p.id ? 'page' : undefined}><Icon name={p.icon} /><span>{p.label}</span>{page === p.id && <span className="nav-dot" />}</button></div>)}</nav><div className="sidebar-bottom"><div className="account-avatar">{username.slice(0, 1).toUpperCase()}</div><div><strong>{username}</strong><small>Administrador</small></div><button className="icon-button" aria-label="Sair do sistema" title="Sair" onClick={() => void exit()}><Icon name="logout" size={18} /></button></div></aside>
+    <aside className={'sidebar ' + (menu ? 'open' : '')}><div className="brand"><span className="brand-mark"><Icon name="wave" size={27} /></span><span>maré<small>GESTÃO DO CAMARÃO</small></span></div><nav aria-label="Navegação principal">{pages.filter(p=>p.id!=='profile').map(p => <div key={p.id}>{p.group && <div className="nav-group">{p.group}</div>}<button className={'nav-item ' + (page === p.id ? 'active' : '')} onClick={() => navigate(p.id)} aria-current={page === p.id ? 'page' : undefined}><Icon name={p.icon} /><span>{p.label}</span>{page === p.id && <span className="nav-dot" />}</button></div>)}</nav><button className="nav-item" style={{marginTop:'auto'}} onClick={()=>navigate('profile')} aria-current={page==='profile'?'page':undefined}><Icon name="people"/><span>Perfil</span></button><div className="sidebar-bottom" style={{marginTop:0}}><div className="account-avatar">{username.slice(0, 1).toUpperCase()}</div><div><strong>{username}</strong><small>Administrador</small></div><button className="icon-button" aria-label="Sair do sistema" title="Sair" onClick={() => void exit()}><Icon name="logout" size={18} /></button></div></aside>
     <div className="main-shell"><header className="topbar"><button className="icon-button mobile-menu" aria-label="Abrir menu" onClick={() => setMenu(true)}><Icon name="menu" /></button><span className="breadcrumb">Meu negócio <span>/</span> <strong>{current.label}</strong></span><span className="top-date">{new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Bahia', dateStyle: 'long' }).format(new Date(today() + 'T12:00:00Z'))}</span></header><main className="content"><div className="page-heading"><div><span className="eyebrow">GESTÃO DO SEU NEGÓCIO</span><h1>{current.label}</h1><p>{current.description}</p></div><button className="button secondary small" onClick={() => setRevision(r => r + 1)}>Atualizar</button></div>
       {period.data?.closed && <div className="closed-day-banner" role="status"><div><strong>Dia {date(period.data.date)} fechado</strong><span>{period.data.automaticClosingPending ? 'Novos lançamentos estão bloqueados desde as 23h59. O snapshot automático está sendo preparado.' : 'Novos lançamentos estão bloqueados. Consulte o snapshot preservado no fechamento.'}</span></div><button className="button secondary small" onClick={() => navigate('result')}>Ver fechamentos</button></div>}
       <ClosedDayContext.Provider value={!!period.data?.closed}>
@@ -83,6 +99,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
         <button className="text-button" onClick={()=>setReplacement(null)}>Sair da correção</button>
       </div>}
       {page === 'dashboard' && <Dashboard revision={revision} navigate={navigate} />}
+      {page === 'profile' && <ProfilePage onChanged={signOut}/>}
       {page === 'analytics' && <AnalyticsPage revision={revision} />}
       {page === 'corrections' && <CorrectionsPage revision={revision} navigate={navigate} />}
       {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} revision={revision} saved={saved} />}

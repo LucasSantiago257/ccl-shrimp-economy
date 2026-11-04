@@ -1,6 +1,5 @@
 package br.com.camarao.auth;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -13,14 +12,26 @@ import org.springframework.security.web.server.authentication.logout.HttpStatusR
 @Configuration
 public class SecurityConfig {
     @Bean
-    MapReactiveUserDetailsService users(@Value("${app.username}") String username, @Value("${app.password}") String password) {
-        if (password.length() < 12) throw new IllegalArgumentException("APP_ADMIN_PASSWORD deve ter no mínimo 12 caracteres.");
-        return new MapReactiveUserDetailsService(User.withUsername(username)
-            .password("{bcrypt}"+new BCryptPasswordEncoder().encode(password)).roles("ADMIN").build());
-    }
+    ReactiveUserDetailsService users(AccountService accounts) { return accounts::find; }
     @Bean
-    SecurityWebFilterChain security(ServerHttpSecurity http) {
-        return http.authorizeExchange(a -> a.pathMatchers("/api/auth/csrf","/api/login").permitAll().anyExchange().authenticated())
+    SecurityWebFilterChain security(ServerHttpSecurity http,AccountService accounts,AuthThrottle throttle) {
+        http.addFilterBefore((exchange,chain)->{
+            if(exchange.getRequest().getMethod()==org.springframework.http.HttpMethod.POST && exchange.getRequest().getPath().value().equals("/api/login")) throttle.check("login",20);
+            return chain.filter(exchange);
+        },org.springframework.security.config.web.server.SecurityWebFiltersOrder.AUTHENTICATION);
+        http.addFilterAfter((exchange,chain)->
+            org.springframework.security.core.context.ReactiveSecurityContextHolder.getContext()
+                .filter(c->c.getAuthentication()!=null && c.getAuthentication().isAuthenticated())
+                .flatMap(c->accounts.account().map(a->c.getAuthentication().getPrincipal() instanceof AccountUser user &&
+                    user.version()==br.com.camarao.shared.Sql.id(a,"version") && user.getUsername().equals(a.get("username"))))
+                .defaultIfEmpty(true).flatMap(valid->{
+                    if(valid) return chain.filter(exchange);
+                    return exchange.getSession().flatMap(session->session.invalidate()).then(reactor.core.publisher.Mono.defer(()->{
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    }));
+                }),org.springframework.security.config.web.server.SecurityWebFiltersOrder.AUTHENTICATION);
+        return http.authorizeExchange(a -> a.pathMatchers("/api/auth/csrf","/api/login","/api/auth/password/reset-request","/api/auth/password/reset").permitAll().anyExchange().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusServerEntryPoint(HttpStatus.UNAUTHORIZED)))
             .formLogin(f -> f.loginPage("/api/login")
                 .authenticationSuccessHandler((filter,auth) -> {

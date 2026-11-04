@@ -21,6 +21,10 @@ docker compose up -d --build
 
 Acesse **http://localhost:5173**. Consulte `APP_ADMIN_USERNAME` e `APP_ADMIN_PASSWORD` no arquivo `.env` para entrar. As credenciais são geradas aleatoriamente e não devem ser versionadas. Não existe senha padrão embutida no código.
 
+Após o primeiro início, a senha passa a ser mantida no banco. Em **Perfil**, no rodapé da barra lateral, use a senha atual para definir uma nova. A alteração permanece após reiniciar o servidor e encerra os acessos anteriores. `APP_ADMIN_PASSWORD` serve para inicializar a conta; alterações posteriores devem ser feitas pelo Perfil ou pela recuperação. Alterar `APP_ADMIN_USERNAME` e reiniciar atualiza o nome do único usuário, preservando a senha do banco.
+
+Para recuperar o acesso, configure `FALLBACK_MAIL`, `APP_PUBLIC_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` e `MAIL_FROM`. O link enviado pelo botão **Esqueci minha senha** vale por 30 minutos e só pode ser usado uma vez. O envio real aguarda credenciais SMTP e remetente válidos. Para Resend, use `smtp.resend.com`, porta `465`, usuário `resend`, a chave API como senha e um remetente do domínio verificado, com `SMTP_SSL=true`. [Configuração oficial](https://resend.com/changelog/smtp-service).
+
 O MySQL fica em um volume próprio, sem porta pública na configuração padrão. Front-end e API são publicados apenas em `127.0.0.1`. A primeira construção baixa as imagens e dependências e pode levar alguns minutos. Para verificar:
 
 ```powershell
@@ -68,7 +72,7 @@ Clientes, fornecedores, produtos, compras, vendas, despesas, movimentos, contas,
 
 Os seletores de cliente, fornecedor e produto dos formulários também permitem pesquisar e navegar por páginas. Os saldos do extrato e os indicadores consideram todos os registros correspondentes, independentemente da página visível. O painel mantém suas prévias de cinco pendências e produtos, com acesso às listas completas.
 
-A tela dos snapshots pagina os registros preservados para leitura; o download JSON continua completo. O estoque do relatório é paginado na tela e integral na impressão.
+A tela dos snapshots pagina os registros preservados para leitura; o download CSV continua completo. O estoque do relatório é paginado na tela e integral na impressão.
 
 ## Fechamento e snapshots
 
@@ -78,7 +82,7 @@ A tela dos snapshots pagina os registros preservados para leitura; o download JS
 - Todas as compras, vendas, despesas, perdas, recebimentos e pagamentos nas datas fechadas ficam bloqueados, inclusive por requisições diretas à API ou outros acessos à mesma empresa.
 - O fechamento e os lançamentos compartilham um bloqueio transacional. Uma operação concorrente entra inteira no snapshot se confirmar antes; se chegar depois, é recusada. O próximo dia fora do intervalo fechado fica aberto automaticamente.
 - Datas futuras e intervalos sobrepostos são rejeitados. Não existe edição, exclusão ou reabertura de fechamentos. Triggers rejeitam UPDATE/DELETE no MySQL.
-- **Fechamentos preservados** permite visualizar os registros e baixar o JSON original, identificado por SHA-256. Mudanças nos cadastros e pagamentos em dias seguintes não recalculam o snapshot.
+- **Fechamentos preservados** permite visualizar os registros e baixar o CSV completo do registro preservado. Mudanças nos cadastros e pagamentos em dias seguintes não recalculam o snapshot.
 - Cadastros podem ser mantidos após o fechamento; isso não altera os registros preservados. O bloqueio é sobre lançamentos financeiros e de estoque.
 - O snapshot é um registro interno de conferência e arquivo. Não é emissão de nota fiscal, assinatura digital ou carimbo de tempo certificado. Preserve backups e o arquivo original com seu hash.
 

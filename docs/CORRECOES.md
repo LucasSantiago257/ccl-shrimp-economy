@@ -23,6 +23,7 @@ Todas as rotas são autenticadas. POST exige CSRF e Idempotency-Key.
 - POST /api/v1/corrections/{kind}/{id} recebe {"reason":"Motivo do registro incorreto"} e retorna {"id":123}.
 - GET /api/v1/corrections/{id}/candidates pagina os substitutos elegíveis.
 - POST /api/v1/corrections/{id}/replacement recebe {"sourceId":456} e retorna o ID da correção.
+- POST /api/v1/corrections/{id}/replacement/new recebe os campos normais do tipo original e retorna o ID do novo lançamento. A criação e o vínculo são confirmados juntos. Se o vínculo falhar, o documento, estoque, título e pagamentos do novo registro são revertidos.
 
 kind aceita SALE, PURCHASE, EXPENSE, PAYMENT ou LOSS. Para LOSS, o ID é o movimento original de perda. O estado de cancelamento nas listas é indicado por correction_id. Nos movimentos de estoque, correction_id identifica o próprio evento de estorno e cancelled_by_correction identifica a correção do movimento de origem.
 

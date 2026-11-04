@@ -37,7 +37,16 @@ public class CorrectionService {
     }
 
     private Mono<Map<String,Object>> source(Kind kind,long id) {
-        return sql.one("SELECT * FROM "+table(kind)+" WHERE id=:id",Map.of("id",id))
+        String fields="d.*";
+        String join="";
+        if(kind==Kind.SALE) {
+            fields+=",p.name AS party_name";
+            join=" LEFT JOIN customers p ON p.id=d.customer_id";
+        } else if(kind==Kind.PURCHASE) {
+            fields+=",COALESCE(p.name,'Fornecedor não informado') AS party_name";
+            join=" LEFT JOIN suppliers p ON p.id=d.supplier_id";
+        }
+        return sql.one("SELECT "+fields+" FROM "+table(kind)+" d"+join+" WHERE d.id=:id",Map.of("id",id))
             .switchIfEmpty(Mono.error(Rules.missing("Lançamento não encontrado.")))
             .doOnNext(row -> Rules.require(kind!=Kind.LOSS || "LOSS".equals(row.get("type")),"Selecione um movimento de perda."));
     }

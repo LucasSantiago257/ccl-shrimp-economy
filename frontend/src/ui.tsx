@@ -1,6 +1,7 @@
 import { cloneElement, createContext, isValidElement, useContext, useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import * as api from './api';
+import { ReplacementContext, postingPaths } from './postingFlow';
 import type { Num } from './types';
 
 export const money = (value: Num = 0) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
@@ -54,22 +55,27 @@ export function Modal({ title, children, close }: { title: string; children: Rea
   useEffect(() => { dialog.current?.showModal(); }, []);
   return <dialog ref={dialog} className="modal" aria-label={title} onCancel={close}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" onClick={close} aria-label="Fechar"><Icon name="close" /></button></div>{children}</dialog>;
 }
-export function MutationForm({ path, method = 'POST', build, done, children, button, valid = true }: {
-  path: string; method?: string; build: (data: FormData) => unknown; done: () => void; children: ReactNode; button: string; valid?: boolean;
+export function MutationForm({ path, method = 'POST', build, done, children, button, valid = true, footerHint = 'Os valores serão conferidos ao salvar.', pendingLabel = 'Salvando…' }: {
+  path: string; method?: string; build: (data: FormData) => unknown; done: () => void; children: ReactNode; button: string; valid?: boolean; footerHint?: string; pendingLabel?: string;
 }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const pending = useRef(false);
   const request = useRef({ fingerprint: '', key: '' });
   const closedDay = useContext(ClosedDayContext);
+  const replacement = useContext(ReplacementContext);
+  const replacing = !!replacement.request && postingPaths[replacement.request.kind] === path && method === 'POST';
+  const effectivePath = replacing ? '/api/v1/corrections/'+replacement.request!.correctionId+'/replacement/new' : path;
   const blocked = closedDay && method === 'POST' && (path.startsWith('/api/v1/corrections/') || ['/api/v1/sales', '/api/v1/purchases', '/api/v1/settlements', '/api/v1/expenses', '/api/v1/stock/losses'].includes(path));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (pending.current || blocked) return; pending.current = true; setBusy(true); setError('');
     try {
-      const body = build(new FormData(event.currentTarget)); const fingerprint = path + JSON.stringify(body);
+      const body = build(new FormData(event.currentTarget)); const fingerprint = effectivePath + JSON.stringify(body);
       if (request.current.fingerprint !== fingerprint) request.current = { fingerprint, key: crypto.randomUUID() };
-      await api.mutate(path, body, request.current.key, method); done();
+      await api.mutate(effectivePath, body, request.current.key, method);
+      if(replacing) replacement.complete();
+      done();
     } catch (e) { setError(e instanceof Error ? e.message : 'Falha de conexão. Tente novamente.'); }
     finally { pending.current = false; setBusy(false); }
   }
-  return <form onSubmit={submit} className="form">{children}{blocked && <p className="alert info" role="status">O dia está fechado. Novos lançamentos estão bloqueados até o próximo dia aberto.</p>}{error && <p className="alert error" role="alert">{error}</p>}<div className="form-footer"><span className="subtle">Os valores serão conferidos ao salvar.</span><button className="button primary" disabled={busy || !valid || blocked}>{busy ? 'Salvando…' : button}<Icon name="arrow" size={17} /></button></div></form>;
+  return <form onSubmit={submit} className="form">{children}{blocked && <p className="alert info" role="status">O dia está fechado. Novos lançamentos estão bloqueados até o próximo dia aberto.</p>}{error && <p className="alert error" role="alert">{error}</p>}<div className="form-footer"><span className="subtle">{footerHint}</span><button className="button primary" disabled={busy || !valid || blocked}>{busy ? pendingLabel : button}<Icon name="arrow" size={17} /></button></div></form>;
 }
 export const text = (data: FormData, key: string) => String(data.get(key) || '').trim();

@@ -1,0 +1,20 @@
+.cancel-flow { display:grid; gap:16px; padding:20px; }
+.cancel-flow p { margin:8px 0; }
+.cancel-summary { display:grid; gap:5px; padding:16px; background:#f0f5f2; border-radius:10px; }
+.cancel-summary span,.cancel-parent span { color:#52685f; font-size:.9rem; }
+.cancel-parent { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
+.cancel-steps { display:flex; flex-wrap:wrap; gap:10px; list-style:none; padding:0; margin:0; }
+.cancel-steps li { padding:8px 12px; border:1px solid #d7e3dc; border-radius:8px; color:#52685f; }
+.cancel-steps li[aria-current=step] { color:#075c52; border-color:#075c52; font-weight:600; }
+.cancel-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px; }
+.cancel-entry { padding:20px; margin-bottom:20px; background:#fff; border:1px solid #d7e3dc; border-radius:12px; }
+.cancel-entry h2,.cancel-pending h3 { margin:0 0 10px; }
+.cancel-effects { border-left:3px solid #75a997; padding-left:16px; }
+.cancel-success { padding:18px; background:#edf5ef; border-radius:10px; }
+.cancel-success strong { color:#185b3f; }
+.cancel-pending { padding:16px; background:#fff8ed; border-radius:10px; }
+.replacement-notice { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+@media(max-width:600px) {
+  .cancel-actions .button { flex:1 1 180px; }
+  .cancel-flow .button { white-space:normal; }
+}

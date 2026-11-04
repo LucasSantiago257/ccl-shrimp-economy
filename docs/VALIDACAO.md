@@ -118,3 +118,8 @@ Os totais de compras e vendas foram confrontados com o relatório para o dia ori
 Os testes de navegador corrections.browser.mjs e trade-periods.browser.mjs aprovaram prévia, motivo, confirmação, cancelamento, selo na origem, substituto, histórico, proteção CSRF, filtros de datas, busca, totais em todas as páginas e cartão de compras no dashboard. A tela móvel de 390 px ficou sem overflow horizontal e sem erros JavaScript.
 
 A regressão de API aprovou novamente 24 cenários gerais, 17 de desconto/paginação e 13 de fechamento. Todas as massas fictícias foram criadas nos ambientes isolados. Novos snapshots usam o formato 3 com correções e estornos detalhados.
+## Fluxo guiado de cancelamento — 04/11/2026
+
+A ação na lista passou a ser Cancelar. O fluxo tem motivo, conferência dos efeitos e conclusão. Pagamentos e movimentos dependentes são apresentados uma etapa por vez, com retorno ao registro original. A conclusão simples encerra o cancelamento. Registrar dados corretos abre o formulário normal e cria o vínculo automaticamente, na mesma transação do novo lançamento.
+
+CorrectionDatabaseTest aprovou o fluxo transacional com reenvio idempotente, recusa de segundo substituto e falha provocada na gravação do vínculo. A falha confirmou rollback do novo documento e do estoque. O teste de navegador aprovou cancelamento de despesa paga com retorno da etapa financeira, alteração de motivo, conclusão sem substituto, criação de despesa correta com vínculo automático e cancelamento de compra com retorno da venda dependente. O layout de 390 px e os erros JavaScript foram verificados. O build Java/TypeScript e os 24 cenários gerais de integração passaram.

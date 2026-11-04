@@ -11,7 +11,16 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/api/v1/corrections")
 public class CorrectionController {
     private final CorrectionService service;
-    public CorrectionController(CorrectionService service) { this.service=service; }
+    private final ReplacementCreationService replacements;
+    public CorrectionController(CorrectionService service,ReplacementCreationService replacements) {
+        this.service=service;
+        this.replacements=replacements;
+    }
+
+    @PostMapping("/{id}/replacement/new")
+    public Mono<Map<String,Long>> createReplacement(@PathVariable long id,@RequestHeader("Idempotency-Key") String key,@RequestBody com.fasterxml.jackson.databind.JsonNode body,Principal actor) {
+        return replacements.create(key,id,body,actor.getName());
+    }
 
     @GetMapping
     public Mono<PageResult> list(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) {

@@ -26,6 +26,8 @@ import static org.mockito.Mockito.*;
 @SpringBootTest(properties={"app.closing.scheduling-enabled=false","spring.r2dbc.url=r2dbc:mysql://127.0.0.1:13307/camarao_test","spring.flyway.url=jdbc:mysql://127.0.0.1:13307/camarao_test?connectionTimeZone=UTC"})
 class CorrectionDatabaseTest {
     @Autowired CorrectionService corrections;
+    @Autowired ReplacementCreationService replacements;
+    @Autowired com.fasterxml.jackson.databind.ObjectMapper mapper;
     @Autowired TradeService trades;
     @Autowired FinanceService finance;
     @Autowired CatalogService catalog;
@@ -125,9 +127,14 @@ class CorrectionDatabaseTest {
         number(history.items().getFirst(),"outstanding","0");
         assertThat(catalog.partners(true,new PageQuery(1,20,"Cliente correção"),false).block().items().getFirst().get("balance").toString()).startsWith("0");
 
-        long replacement=expense("21").block().get("id");
         long correctedExpense=Sql.id(sql.one("SELECT id FROM corrections WHERE kind='EXPENSE' AND source_id=:id",Map.of("id",expense)).block(),"id");
-        corrections.link(key(),correctedExpense,new CorrectionService.Replacement(replacement),"test").block();
+        var replacementBody=mapper.valueToTree(new FinanceService.Expense("Despesa correta","Teste",amount("21"),BigDecimal.ZERO,"PIX",first.plusDays(30)));
+        String replacementKey=key();
+        long replacement=replacements.create(replacementKey,correctedExpense,replacementBody,"test").block().get("id");
+        assertThat(replacements.create(replacementKey,correctedExpense,replacementBody,"test").block().get("id")).isEqualTo(replacement);
+        long expensesBefore=Sql.id(sql.one("SELECT COUNT(*) total FROM expenses",Map.of()).block(),"total");
+        assertThatThrownBy(() -> replacements.create(key(),correctedExpense,replacementBody,"test").block()).hasMessageContaining("já tem");
+        assertThat(Sql.id(sql.one("SELECT COUNT(*) total FROM expenses",Map.of()).block(),"total")).isEqualTo(expensesBefore);
         assertThatThrownBy(() -> corrections.link(key(),correctedExpense,new CorrectionService.Replacement(replacement),"test").block()).hasMessageContaining("Já existe");
         assertThat(corrections.preview(CorrectionService.Kind.EXPENSE,expense).block().get("correction").toString()).contains("replacement_id="+replacement);
         assertThatThrownBy(() -> sql.update("UPDATE corrections SET reason='alterado' WHERE id=:id",Map.of("id",correctedExpense)).block()).hasMessageContaining("imutaveis");
@@ -165,6 +172,21 @@ class CorrectionDatabaseTest {
         catalog.editProduct(product,new CatalogService.Product("REV-QA","Camarão correção",amount("50"),BigDecimal.ZERO,false)).block();
         cancel(CorrectionService.Kind.PURCHASE,multi).block();
         number(sql.one("SELECT * FROM stock_balances WHERE product_id=:id",Map.of("id",product)).block(),"quantity","0");
+
+        catalog.editProduct(product,new CatalogService.Product("REV-QA","Camarão correção",amount("50"),BigDecimal.ZERO,true)).block();
+        long multiCorrection=Sql.id(sql.one("SELECT id FROM corrections WHERE kind='PURCHASE' AND source_id=:id",Map.of("id",multi)).block(),"id");
+        var multiBody=mapper.valueToTree(new TradeService.Trade(null,List.of(
+            new TradeService.Item(product,amount("2"),amount("30")),
+            new TradeService.Item(second,amount("3"),amount("40"))),BigDecimal.ZERO,"PIX",first,false,null));
+        long purchasesBefore=Sql.id(sql.one("SELECT COUNT(*) total FROM purchases",Map.of()).block(),"total");
+        sql.update("CREATE TRIGGER replacement_test_failure BEFORE INSERT ON correction_replacements FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Forced replacement failure'",Map.of()).block();
+        String failedKey=key();
+        try { assertThatThrownBy(() -> replacements.create(failedKey,multiCorrection,multiBody,"test").block()).hasMessageContaining("Forced replacement failure"); }
+        finally { sql.update("DROP TRIGGER replacement_test_failure",Map.of()).block(); }
+        assertThat(Sql.id(sql.one("SELECT COUNT(*) total FROM purchases",Map.of()).block(),"total")).isEqualTo(purchasesBefore);
+        number(sql.one("SELECT * FROM stock_balances WHERE product_id=:id",Map.of("id",product)).block(),"quantity","0");
+        replacements.create(failedKey,multiCorrection,multiBody,"test").block();
+        number(sql.one("SELECT * FROM stock_balances WHERE product_id=:id",Map.of("id",product)).block(),"quantity","2");
 
         long dayClosing=closings.close(key(),new ClosingService.ClosePeriod(first.plusDays(1),first.plusDays(1),"Correções do dia"),"test").block().get("id");
         assertThat(closings.json(dayClosing).block()).contains("correction_replacements","Registro de teste incorreto","correction_stock");

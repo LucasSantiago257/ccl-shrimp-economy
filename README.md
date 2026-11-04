@@ -88,11 +88,11 @@ Para testar especificamente a automação com relógio controlado, Java 21, Mave
 
 ## Correção de lançamentos
 
-Use **Corrigir** na lista de compras, vendas, despesas, pagamentos ou perdas. Também é possível informar o tipo e o número em **Resultados → Correções**. Confira a prévia, informe um motivo de 5 a 500 caracteres e confirme o cancelamento. O estorno entra na data atual, que precisa estar aberta; o documento original e os snapshots anteriores ficam preservados.
+Na lista de compras, vendas, despesas, pagamentos ou perdas, localize o registro e clique em **Cancelar**. Informe o motivo, avance em **Conferir cancelamento**, confira os efeitos e confirme. A janela exibe **Cancelamento concluído** e o botão **Concluir** encerra o fluxo. O estorno entra na data atual, que precisa estar aberta.
 
-Documentos com pagamentos vinculados exigem cancelar esses registros primeiro. Um pagamento pode abranger várias contas: a prévia mostra todas elas. Para ajustes de estoque, movimentos posteriores do mesmo produto devem ser corrigidos do mais recente para o mais antigo. Isso permite recompor quantidades, valores e custo médio sem recalcular operações já confirmadas.
+Quando houver pagamentos ou movimentos de estoque dependentes, a própria janela apresenta a próxima etapa. Depois de conferir e cancelar o registro dependente, use **Continuar cancelamento** para voltar ao original. Cada registro depende de confirmação explícita. Um pagamento pode abranger várias contas; elas aparecem na conferência. Os movimentos de estoque seguem do mais recente para o mais antigo.
 
-Depois, cadastre o lançamento correto na tela de origem e use **Ver cancelamento → Vincular lançamento correto**. O histórico mantém original, motivo, autor, data e substituto. Esta versão trata erros de registro; devoluções reais de mercadoria e reembolsos ainda exigem um fluxo próprio.
+Para registrar os dados corretos depois de cancelar, clique em **Registrar dados corretos**. O formulário abre na tela de origem e o vínculo é feito automaticamente ao salvar. Para pagamentos, selecione a conta no Financeiro. A criação e o vínculo são confirmados juntos. Em **Resultados → Correções**, consulte o histórico e retome esse fluxo pelo botão **Ver cancelamento**. Esta versão trata erros de registro; devoluções reais de mercadoria e reembolsos ainda exigem um fluxo próprio.
 
 Em **Compras** e **Vendas**, selecione o período para ver valores e quilos de todas as páginas e do filtro de busca. Os cartões mostram os valores registrados, estornos e total líquido. Um estorno de documento antigo entra na data da correção, mesmo que o original esteja fora do intervalo da lista. O dashboard também apresenta **Compras no período**, em reais e kg.
 

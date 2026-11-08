@@ -141,3 +141,9 @@ O teste profile.browser.mjs confirmou troca exigindo senha atual, persistência 
 A regressão aprovou 24 cenários gerais, 17 de desconto/paginação, 13 de fechamento, correções, totais por período e navegação de snapshots em computador e celular. Os downloads do fechamento agora são CSV completos e continuam estáveis após mudanças dos cadastros. A integridade do snapshot de origem segue validada internamente.
 
 O envio real depende da configuração de SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM e APP_PUBLIC_URL. FALLBACK_MAIL é o destinatário fixo configurado pelo responsável no ambiente.
+
+## Login persistente — 08/11/2026
+
+`tests/remember-login.browser.mjs`, com MySQL isolado e projeto Docker `camarao-remember-qa`, aprovou opção desmarcada por padrão, validade de 30 dias, hash no banco, reabertura somente com cookie persistente, reinício do backend, CSRF obrigatório, logout, novo login sem lembrar, token expirado/malformado e revogação após trocar senha. Layout conferido em 390 px. O teste de perfil também passou com acessos lembrados, incluindo a rejeição do cookie antigo após redefinição por e-mail local. Nenhum e-mail foi enviado para fora do Mailpit.
+
+Para repetir: `docker compose -p camarao-remember-qa -f compose.yaml -f compose.test.yaml -f compose.profile-test.yaml up -d --build --wait`, depois `node tests/remember-login.browser.mjs` e `PROFILE_TEST_PROJECT=camarao-remember-qa node tests/profile.browser.mjs` (no PowerShell, defina a variável pelo `$env:PROFILE_TEST_PROJECT`). Os testes alteram a senha apenas no banco isolado e restauram o valor inicial ao concluir com sucesso.

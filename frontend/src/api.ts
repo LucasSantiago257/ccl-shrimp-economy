@@ -24,11 +24,11 @@ export async function mutate<T>(path: string, body: unknown, key: string, method
   }, body: JSON.stringify(body) }));
 }
 
-export async function login(username: string, password: string): Promise<void> {
+export async function login(username: string, password: string, remember = false): Promise<void> {
   const csrf = await get<{ token: string; header: string }>('/api/auth/csrf');
   await result(await fetch('/api/login', { method: 'POST', credentials: 'same-origin', headers: {
     'Content-Type': 'application/x-www-form-urlencoded', [csrf.header]: csrf.token,
-  }, body: new URLSearchParams({ username, password }) }));
+  }, body: new URLSearchParams({ username, password, remember: String(remember) }) }));
 }
 
 export async function logout(): Promise<void> {

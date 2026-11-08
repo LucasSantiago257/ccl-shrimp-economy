@@ -12,14 +12,16 @@ import reactor.core.publisher.Mono;
 public class AuthController {
     private final AccountService accounts;
     private final AuthThrottle throttle;
-    public AuthController(AccountService accounts,AuthThrottle throttle) { this.accounts=accounts;this.throttle=throttle; }
+    private final RememberedLoginService remembered;
+    public AuthController(AccountService accounts,AuthThrottle throttle,RememberedLoginService remembered) { this.accounts=accounts;this.throttle=throttle;this.remembered=remembered; }
     public record Change(@jakarta.validation.constraints.NotBlank String currentPassword,@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=72) String password,@jakarta.validation.constraints.NotBlank String confirmation) {}
     public record Reset(@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=100) String token,@jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=72) String password,@jakarta.validation.constraints.NotBlank String confirmation) {}
     @GetMapping("/profile") public Mono<Map<String,Object>> profile() { return accounts.profile(); }
     @PostMapping("/password")
     public Mono<Void> change(@jakarta.validation.Valid @RequestBody Change body,ServerWebExchange exchange) {
         throttle.check("change",10);
-        return accounts.change(body.currentPassword(),body.password(),body.confirmation()).then(exchange.getSession().flatMap(session->session.invalidate()));
+        return accounts.change(body.currentPassword(),body.password(),body.confirmation())
+            .then(Mono.defer(()->remembered.revoke(exchange))).then(exchange.getSession().flatMap(session->session.invalidate()));
     }
     @PostMapping("/password/reset-request")
     public Mono<Map<String,String>> requestReset() {
@@ -29,7 +31,8 @@ public class AuthController {
     @PostMapping("/password/reset")
     public Mono<Void> reset(@jakarta.validation.Valid @RequestBody Reset body,ServerWebExchange exchange) {
         throttle.check("reset",10);
-        return accounts.reset(body.token(),body.password(),body.confirmation()).then(exchange.getSession().flatMap(session->session.invalidate()));
+        return accounts.reset(body.token(),body.password(),body.confirmation())
+            .then(Mono.defer(()->remembered.revoke(exchange))).then(exchange.getSession().flatMap(session->session.invalidate()));
     }
     @GetMapping("/csrf")
     public Mono<Map<String,String>> csrf(ServerWebExchange exchange) {

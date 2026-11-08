@@ -13,7 +13,7 @@ async function post(context,path,body,status=200) {
 }
 async function login(context,password,status=204) {
  const token=await (await context.request.get(base+'/api/auth/csrf')).json();
- const r=await context.request.post(base+'/api/login',{headers:{[token.header]:token.token},form:{username:env.APP_ADMIN_USERNAME,password}});
+ const r=await context.request.post(base+'/api/login',{headers:{[token.header]:token.token},form:{username:env.APP_ADMIN_USERNAME,password,remember:"true"}});
  assert.equal(r.status(),status);
 }
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -66,12 +66,16 @@ try {
  await resetPage.goto(base+'/#reset-password='+token);
  await resetPage.getByLabel('Nova senha',{exact:true}).waitFor();
  assert.equal(resetPage.url().includes(token),false);
+ const rememberedCookie=(await context.cookies(base+'/api/auth/me')).find(c=>c.name==='MARE_REMEMBER');
+ assert.ok(rememberedCookie);
  const next='Qa-Reset-'+randomUUID();
  await resetPage.getByLabel('Nova senha',{exact:true}).fill(next);
  await resetPage.getByLabel('Confirmar nova senha',{exact:true}).fill(next);
  await resetPage.getByRole('button',{name:'Redefinir senha',exact:true}).click();
  await resetPage.getByText('Senha redefinida. Entre com a nova senha.',{exact:true}).waitFor();
  assert.equal((await context.request.get(base+'/api/auth/me')).status(),401);
+ const rememberedDevice=await browser.newContext();await rememberedDevice.addCookies([rememberedCookie]);
+ assert.equal((await rememberedDevice.request.get(base+'/api/auth/me')).status(),401);
  await post(recovery,'/api/auth/password/reset',{token,password:next,confirmation:next},422);
  await login(recovery,next);
  const expiredToken='e'.repeat(43);

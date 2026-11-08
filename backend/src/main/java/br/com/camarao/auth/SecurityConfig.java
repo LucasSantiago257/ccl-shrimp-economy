@@ -14,7 +14,8 @@ public class SecurityConfig {
     @Bean
     ReactiveUserDetailsService users(AccountService accounts) { return accounts::find; }
     @Bean
-    SecurityWebFilterChain security(ServerHttpSecurity http,AccountService accounts,AuthThrottle throttle) {
+    SecurityWebFilterChain security(ServerHttpSecurity http,AccountService accounts,AuthThrottle throttle,RememberedLoginService remembered) {
+        http.addFilterBefore(remembered::filter,org.springframework.security.config.web.server.SecurityWebFiltersOrder.AUTHENTICATION);
         http.addFilterBefore((exchange,chain)->{
             if(exchange.getRequest().getMethod()==org.springframework.http.HttpMethod.POST && exchange.getRequest().getPath().value().equals("/api/login")) throttle.check("login",20);
             return chain.filter(exchange);
@@ -36,13 +37,18 @@ public class SecurityConfig {
             .formLogin(f -> f.loginPage("/api/login")
                 .authenticationSuccessHandler((filter,auth) -> {
                     filter.getExchange().getResponse().setStatusCode(HttpStatus.NO_CONTENT);
-                    return filter.getExchange().getResponse().setComplete();
+                    return remembered.onLogin(filter.getExchange(),(AccountUser)auth.getPrincipal())
+                        .then(reactor.core.publisher.Mono.defer(()->filter.getExchange().getResponse().setComplete()));
                 })
                 .authenticationFailureHandler((filter,error) -> {
                     filter.getExchange().getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                     return filter.getExchange().getResponse().setComplete();
                 }))
-            .logout(l -> l.logoutUrl("/api/logout").logoutSuccessHandler(new HttpStatusReturningServerLogoutSuccessHandler(HttpStatus.NO_CONTENT)))
+            .logout(l -> l.logoutUrl("/api/logout").logoutHandler(new org.springframework.security.web.server.authentication.logout.DelegatingServerLogoutHandler(
+                (exchange,auth)->remembered.revoke(exchange.getExchange()),
+                new org.springframework.security.web.server.authentication.logout.SecurityContextServerLogoutHandler(),
+                new org.springframework.security.web.server.authentication.logout.WebSessionServerLogoutHandler()))
+                .logoutSuccessHandler(new HttpStatusReturningServerLogoutSuccessHandler(HttpStatus.NO_CONTENT)))
             .build();
     }
 }

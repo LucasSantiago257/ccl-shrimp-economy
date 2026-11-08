@@ -206,6 +206,8 @@ O navegador de teste é separado do seu perfil pessoal. O primeiro teste valida 
 
 ## Limites desta entrega
 
+A tela de entrada oferece **Lembrar meu login por 30 dias**, desmarcada por padrão. Em um dispositivo pessoal, permite voltar ao sistema sem digitar a senha, inclusive após reiniciar o navegador ou o backend. **Sair do sistema** revoga esse acesso no dispositivo; trocar ou redefinir a senha invalida todos os acessos antigos. Em produção, configure `APP_PUBLIC_URL` com HTTPS para que o cookie persistente seja Secure. A migração V8 guarda somente hashes dos tokens no MySQL.
+
 - Um administrador configurado por ambiente; cadastro de usuários e permissões distintas ainda pendente.
 - Uma conta financeira operacional; sem saldo inicial, aportes, retiradas ou conciliação bancária. O relatório identifica o saldo como saldo dos lançamentos registrados.
 - Datas operacionais são as do registro, em UTC, com relatório por dia no fuso America/Bahia; sem lançamentos retroativos nesta versão.

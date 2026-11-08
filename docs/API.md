@@ -25,11 +25,13 @@ Compras e vendas aceitam `from` e `to` inclusivos, opcionais em conjunto, para i
 ## Autenticação
 
 1. GET `/api/auth/csrf`: retorna `token` e `header`, e inicia a sessão.
-2. POST `/api/login`: formulário URL-encoded com `username` e `password`; enviar cookie de sessão e o header CSRF retornado. Sucesso 204, falha 401.
+2. POST `/api/login`: formulário URL-encoded com `username`, `password` e `remember=true` opcional (padrão false); enviar cookie de sessão e o header CSRF retornado. Sucesso 204, falha 401.
 3. GET `/api/auth/me`: retorna o usuário autenticado.
 4. POST `/api/logout`: encerra a sessão; enviar CSRF.
 
 Depois de autenticar, obtenha novamente o CSRF antes dos comandos. O navegador inclui o cookie HttpOnly automaticamente. Não usar Basic Auth.
+
+`remember=true` emite `MARE_REMEMBER`, cookie HttpOnly, SameSite=Lax, caminho `/api`, com validade fixa de 30 dias. Em HTTPS (APP_PUBLIC_URL ou conexão TLS direta), usa Secure. O banco guarda somente o SHA-256 do token aleatório de 256 bits e a versão da conta. Sem sessão, o token autentica cada requisição após verificar prazo e versão no banco; continua funcionando após reinício do backend. A sessão normal segue com 8 horas de inatividade e cookie de sessão. Não há armazenamento de senha/token em localStorage. Logout revoga o token daquele dispositivo e encerra sua sessão. Novo login sem a opção revoga o token anterior do dispositivo. Troca/reset de senha ou alteração do usuário revogam todos os acessos lembrados por versão; CSRF continua obrigatório. Após 30 dias é necessário informar a senha novamente.
 
 ## Perfil e recuperação
 

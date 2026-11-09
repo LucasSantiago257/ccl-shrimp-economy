@@ -8,6 +8,8 @@ import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
 import { AnalyticsPage } from './AnalyticsPage';
 import { ProfilePage, RecoveryPage } from './ProfilePage';
+import { OpeningPage } from './OpeningPage';
+import './opening.css';
 import { CorrectionContext, CorrectionModal, CorrectionsPage } from './Corrections';
 import type { CorrectionTarget } from './Corrections';
 import { ReplacementContext, postingPages } from './postingFlow';
@@ -19,6 +21,7 @@ const pages = [
   { id: 'customers', label: 'Clientes', icon: 'people', group: 'CADASTROS', description: 'Pessoas, histórico e valores a receber.' },
   { id: 'suppliers', label: 'Fornecedores', icon: 'people', description: 'Quem abastece o seu negócio.' },
   { id: 'products', label: 'Produtos', icon: 'box', description: 'Seu catálogo e os preços por quilo.' },
+  { id: 'opening', label: 'Saldo inicial', icon: 'wallet', description: 'Traga os saldos das suas planilhas para a Maré.' },
   { id: 'purchases', label: 'Compras', icon: 'purchase', group: 'OPERAÇÃO', description: 'Registre o camarão que chega à empresa.' },
   { id: 'sales', label: 'Vendas', icon: 'sale', description: 'Venda por quilo, à vista ou fiado.' },
   { id: 'stock', label: 'Estoque', icon: 'box', description: 'Acompanhe cada entrada, saída e perda.' },
@@ -100,6 +103,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
       </div>}
       {page === 'dashboard' && <Dashboard revision={revision} navigate={navigate} />}
       {page === 'profile' && <ProfilePage onChanged={signOut}/>}
+      {page === 'opening' && <OpeningPage revision={revision} saved={saved} navigate={navigate}/>}
       {page === 'analytics' && <AnalyticsPage revision={revision} />}
       {page === 'corrections' && <CorrectionsPage revision={revision} navigate={navigate} />}
       {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} revision={revision} saved={saved} />}

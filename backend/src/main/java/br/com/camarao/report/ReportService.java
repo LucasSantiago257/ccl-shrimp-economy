@@ -31,8 +31,9 @@ public class ReportService {
               (SELECT COALESCE(-SUM(quantity_delta),0) FROM stock_events WHERE type='LOSS' AND occurred_at>=:from AND occurred_at<:to) AS lost_kg,
               (SELECT COALESCE(SUM(amount),0) FROM settlement_events WHERE direction='IN' AND occurred_at>=:from AND occurred_at<:to) AS received,
               (SELECT COALESCE(SUM(amount),0) FROM settlement_events WHERE direction='OUT' AND occurred_at>=:from AND occurred_at<:to) AS paid,
-              (SELECT COALESCE(SUM(CASE WHEN direction='IN' THEN amount ELSE -amount END),0) FROM settlement_events WHERE occurred_at<:from) AS opening_cash,
-              (SELECT COALESCE(SUM(CASE WHEN direction='IN' THEN amount ELSE -amount END),0) FROM settlement_events WHERE occurred_at<:to) AS closing_cash,
+              (SELECT COALESCE(SUM(CASE WHEN direction='IN' THEN amount ELSE -amount END),0) FROM cash_events WHERE occurred_at<:from) AS opening_cash,
+              (SELECT COALESCE(SUM(amount),0) FROM cash_events WHERE origin='OPENING' AND occurred_at>=:from AND occurred_at<:to) AS initial_cash,
+              (SELECT COALESCE(SUM(CASE WHEN direction='IN' THEN amount ELSE -amount END),0) FROM cash_events WHERE occurred_at<:to) AS closing_cash,
               (SELECT COALESCE(SUM(IF(t.cancelled_at<:to,0,t.amount)-COALESCE(a.paid,0)),0) FROM title_positions t
                 LEFT JOIN (SELECT a.title_id,SUM(a.amount) paid FROM allocation_events a WHERE a.occurred_at<:to GROUP BY a.title_id) a ON a.title_id=t.id
                 WHERE t.nature='RECEIVABLE' AND t.issued_at<:to) AS receivables,
@@ -41,7 +42,7 @@ public class ReportService {
                 WHERE t.nature='PAYABLE' AND t.issued_at<:to) AS payables,
               (SELECT COALESCE(SUM(IF(t.cancelled_at<:to,0,t.amount)-COALESCE(a.paid,0)),0) FROM title_positions t
                 LEFT JOIN (SELECT a.title_id,SUM(a.amount) paid FROM allocation_events a WHERE a.occurred_at<:to GROUP BY a.title_id) a ON a.title_id=t.id
-                WHERE t.purchase_id IS NOT NULL AND t.issued_at<:to) AS purchase_payables
+                WHERE (t.purchase_id IS NOT NULL OR t.opening_purchase=TRUE) AND t.issued_at<:to) AS purchase_payables
             """;
         return sql.one(query,Map.of("from",start,"to",end)).flatMap(metrics -> {
             var m=new LinkedHashMap<String,Object>(metrics);

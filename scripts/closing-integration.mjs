@@ -88,7 +88,7 @@ await test('Corrida entre lançamento e fechamento preserva uma fronteira atômi
 await test('Snapshot contém metadados, itens e posições financeiras preservadas', async () => {
   assert.equal(captured.metadata.closed_by, env.APP_ADMIN_USERNAME);
   assert.equal(captured.metadata.date_from, day); assert.equal(captured.metadata.date_to, day);
-  assert.equal(captured.snapshot.schemaVersion, 3);
+  assert.equal(captured.snapshot.schemaVersion, 4);
   assert.ok('discounts' in captured.snapshot.report.metrics);
   for (const sale of captured.snapshot.records.sales) assert.equal(Math.round(Number(sale.gross_total) * 100) - Math.round(Number(sale.discount_amount) * 100), Math.round(Number(sale.total) * 100));
   for (const key of ['sales', 'sale_items', 'purchases', 'purchase_items', 'expenses', 'stock_movements', 'settlements', 'settlement_allocations', 'titles', 'products']) assert.ok(Array.isArray(captured.snapshot.records[key]), key);

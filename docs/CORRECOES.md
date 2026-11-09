@@ -33,7 +33,7 @@ A lista exibe os documentos emitidos no intervalo. Os totais somam os eventos do
 
 ## Snapshots
 
-Novos snapshots usam schemaVersion 3. Incluem o diário de correções, valores originais, vínculos de estorno de estoque, estornos financeiros e substituições. Posições de títulos excluem informações de cancelamentos futuros em relação à data final. Snapshots anteriores conservam seus bytes e hash e seguem legíveis na interface.
+A versão 3 introduziu os registros de correção; novos snapshots usam schemaVersion 4, incluindo os saldos iniciais e seus estornos. Incluem o diário de correções, valores originais, vínculos de estorno de estoque, estornos financeiros e substituições. Posições de títulos excluem informações de cancelamentos futuros em relação à data final. Snapshots anteriores conservam seus bytes e hash e seguem legíveis na interface.
 
 ## Verificação
 

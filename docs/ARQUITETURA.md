@@ -94,7 +94,7 @@ Administrador único persistido no MySQL, inicializado pelo ambiente, com senha 
 2. Correções avançadas com recálculo de cadeias de custo, além do cancelamento em ordem inversa disponível hoje.
 3. Avaliação de índices e estratégia de busca conforme o volume real de uso.
 4. Usuários, perfis e auditoria de alterações dos cadastros (os lançamentos já registram autor).
-5. Lotes e validade, saldos iniciais, aportes/retiradas e múltiplas contas.
+5. Lotes e validade, ajustes de inventário posteriores à implantação, aportes/retiradas e múltiplas contas.
 6. Parcelas, frete de aquisição rateado, pedidos/reservas e emissão fiscal, conforme necessidade.
 
 ## Desconto e migração V3

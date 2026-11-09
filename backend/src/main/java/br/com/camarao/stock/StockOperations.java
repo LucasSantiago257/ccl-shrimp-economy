@@ -27,6 +27,6 @@ public class StockOperations {
     }
     public Mono<PageResult> movements(long productId,PageQuery page) {
         return sql.page("SELECT m.*,p.name AS product_name,c.id AS cancelled_by_correction FROM stock_events m LEFT JOIN correction_stock cs ON cs.movement_id=m.source_movement_id LEFT JOIN corrections c ON c.id=cs.correction_id JOIN products p ON p.id=m.product_id WHERE (:product=0 OR m.product_id=:product) AND (p.name LIKE :q ESCAPE '!' OR p.code LIKE :q ESCAPE '!' OR m.reason LIKE :q ESCAPE '!')",
-            "m.occurred_at DESC,m.id DESC",Map.of("product",productId,"q",page.like()),page);
+            "m.occurred_at DESC,m.id DESC,m.event_key",Map.of("product",productId,"q",page.like()),page);
     }
 }

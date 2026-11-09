@@ -90,7 +90,7 @@ GET/POST `/purchases` ou `/sales`. Exemplo de venda:
 
 `discountAmount` é opcional nas vendas (padrão zero) e deve ter no máximo duas casas decimais. `gross_total` é a soma dos itens; `discount_amount` é o desconto do documento; `total` é o valor líquido. `paidAmount` não pode ultrapassar esse líquido e `payInFull` quita o líquido exato. O exemplo acima gera venda de R$ 450, pagamento de R$ 200 e dívida de R$ 250.
 
-Desconto integral é permitido: gera venda de total zero com custo e movimento de estoque, mas sem título ou recebimento. Nas compras omita o desconto ou envie zero. Os itens preservam seus subtotais brutos, sem rateio do desconto global. Novos snapshots usam `schemaVersion=2`; os anteriores permanecem íntegros.
+Desconto integral é permitido: gera venda de total zero com custo e movimento de estoque, mas sem título ou recebimento. Nas compras omita o desconto ou envie zero. Os itens preservam seus subtotais brutos, sem rateio do desconto global. O desconto foi introduzido no schemaVersion 2; snapshots novos usam a versão 4 e os anteriores permanecem íntegros.
 
 POST `/settlements` permite quitar parcialmente ou distribuir um pagamento entre títulos da mesma pessoa/natureza:
 
@@ -150,3 +150,7 @@ Compras, vendas, pagamentos, despesas e perdas tentados em dia fechado retornam 
 - 422: regra de negócio violada, por exemplo pagamento acima da dívida.
 
 Erros de validação e domínio retornam `message` e, quando aplicável, `errors`. O cliente deve recarregar os dados em conflitos e manter a chave quando reenviar um comando idêntico após falha de rede.
+
+## Saldo inicial e exportação compacta
+
+Consulte os contratos, os limites de período e as regras de implantação em [Saldo inicial e exportação compacta](SALDOS_E_EXPORTACAO.md). O resumo é obtido por GET /api/v1/reports/export e a configuração por /api/v1/opening-balances. Os novos snapshots usam schemaVersion 4.

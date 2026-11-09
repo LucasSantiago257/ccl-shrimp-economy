@@ -64,7 +64,7 @@ export function MutationForm({ path, method = 'POST', build, done, children, but
   const replacement = useContext(ReplacementContext);
   const replacing = !!replacement.request && postingPaths[replacement.request.kind] === path && method === 'POST';
   const effectivePath = replacing ? '/api/v1/corrections/'+replacement.request!.correctionId+'/replacement/new' : path;
-  const blocked = closedDay && method === 'POST' && (path.startsWith('/api/v1/corrections/') || ['/api/v1/sales', '/api/v1/purchases', '/api/v1/settlements', '/api/v1/expenses', '/api/v1/stock/losses'].includes(path));
+  const blocked = closedDay && method === 'POST' && (path.startsWith('/api/v1/corrections/') || path.startsWith('/api/v1/opening-balances') || ['/api/v1/sales', '/api/v1/purchases', '/api/v1/settlements', '/api/v1/expenses', '/api/v1/stock/losses'].includes(path));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (pending.current || blocked) return; pending.current = true; setBusy(true); setError('');
     try {

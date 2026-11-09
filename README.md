@@ -204,6 +204,10 @@ node closing.browser.mjs
 
 O navegador de teste é separado do seu perfil pessoal. O primeiro teste valida cadastros, compras com/sem fornecedor, pendências, venda parcial, recebimento e nove telas em 390px. O segundo valida o fechamento pela interface, leitura/download do snapshot e bloqueio visual dos lançamentos. As capturas são salvas localmente em `docs/previews/`, usam exclusivamente dados fictícios e não são versionadas.
 
+## Saldo inicial e resumo de mês/ano
+
+Em **Saldo inicial**, traga estoque com custo, dinheiro e contas antigas de suas planilhas antes do primeiro lançamento. A conferência não gera compras, vendas ou lucro fictício. Em **Fechamento**, use **Exportar resumo CSV**: uma linha por mês ou um consolidado de todo o período, sem juntar snapshots diários. Veja [regras e exemplos](docs/SALDOS_E_EXPORTACAO.md).
+
 ## Limites desta entrega
 
 A tela de entrada oferece **Lembrar meu login por 30 dias**, desmarcada por padrão. Em um dispositivo pessoal, permite voltar ao sistema sem digitar a senha, inclusive após reiniciar o navegador ou o backend. **Sair do sistema** revoga esse acesso no dispositivo; trocar ou redefinir a senha invalida todos os acessos antigos. Em produção, configure `APP_PUBLIC_URL` com HTTPS para que o cookie persistente seja Secure. A migração V8 guarda somente hashes dos tokens no MySQL.
@@ -211,11 +215,11 @@ A tela de entrada oferece **Lembrar meu login por 30 dias**, desmarcada por padr
 As correções da auditoria adicionam limite de 20 tentativas de login por origem e minuto, com contagem persistida no MySQL (V9) e resposta 429. Clientes, fornecedores e produtos exigem `Idempotency-Key` na criação, assim como os lançamentos. Itens ou alocações nulos são rejeitados antes da gravação. Quantidades abaixo de 0,01 kg aparecem em gramas: 0,001 kg é exibido como **1 g**, preservando a apresentação usual em kg para os demais valores. Veja os contratos e os cuidados com proxy em [API](docs/API.md).
 
 - Um administrador configurado por ambiente; cadastro de usuários e permissões distintas ainda pendente.
-- Uma conta financeira operacional; sem saldo inicial, aportes, retiradas ou conciliação bancária. O relatório identifica o saldo como saldo dos lançamentos registrados.
+- Uma conta financeira operacional, com implantação de saldos iniciais antes da primeira operação. Aportes, retiradas, transferências posteriores e conciliação bancária ainda não têm módulo próprio.
 - Datas operacionais são as do registro, em UTC, com relatório por dia no fuso America/Bahia; sem lançamentos retroativos nesta versão.
 - Sem rascunhos, pedidos futuros, reserva, devoluções reais, juros, crédito antecipado, emissão fiscal ou integração de pagamento.
 - Sem reabertura de períodos fechados; correções futuras precisarão de ajustes auditados que preservem os snapshots existentes.
 - Sem lotes/validade e sem frete de aquisição rateado. O custo considera os totais arredondados dos itens comprados. Registre despesas operacionais separadamente, evitando contar um mesmo gasto duas vezes.
 - Ambiente de desenvolvimento local. Acesso por celular físico em rede e publicação exigem configuração de rede, HTTPS, cookies Secure e revisão operacional; não basta expor o MySQL.
 
-Veja [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e [Validação](docs/VALIDACAO.md).
+Veja [Saldo inicial e exportação compacta](docs/SALDOS_E_EXPORTACAO.md), [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e [Validação](docs/VALIDACAO.md).

@@ -35,3 +35,12 @@ export async function logout(): Promise<void> {
   const csrf = await get<{ token: string; header: string }>('/api/auth/csrf');
   await result(await fetch('/api/logout', { method: 'POST', credentials: 'same-origin', headers: { [csrf.header]: csrf.token } }));
 }
+
+export async function download(path: string): Promise<void> {
+  const response = await fetch(path, { credentials: 'same-origin' });
+  if (!response.ok) await result<void>(response);
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement('a'); anchor.href = url;
+  anchor.download = response.headers.get('Content-Disposition')?.match(/filename=([^;]+)/)?.[1] || 'mare-resumo.csv';
+  anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

@@ -61,8 +61,8 @@ class CorrectionDatabaseTest {
         assertThat(countCorrections()).isZero();
         when(clock.instant()).thenAnswer(ignored -> instant.get());
         at(0,"12:00:00");
-        long product=catalog.createProduct(new CatalogService.Product("REV-QA","Camarão correção",amount("50"),BigDecimal.ZERO,true)).block().get("id");
-        long customer=catalog.createPartner(true,new CatalogService.Partner("Cliente correção","","","",true)).block().get("id");
+        long product=catalog.createProduct(key(),new CatalogService.Product("REV-QA","Camarão correção",amount("50"),BigDecimal.ZERO,true),"test").block().get("id");
+        long customer=catalog.createPartner(true,key(),new CatalogService.Partner("Cliente correção","","","",true),"test").block().get("id");
         var purchaseBody=new TradeService.Trade(null,List.of(new TradeService.Item(product,amount("20"),amount("30"))),amount("200"),"PIX",first,false,null);
         long purchase=trades.confirm(false,key(),purchaseBody,"test").block().get("id");
         var saleBody=new TradeService.Trade(customer,List.of(new TradeService.Item(product,amount("5"),amount("50"))),amount("40"),"PIX",first,false,amount("10"));
@@ -159,7 +159,7 @@ class CorrectionDatabaseTest {
         number(titles.stream().filter(t -> Sql.id(t,"id")==titleTwo).findFirst().orElseThrow(),"outstanding","20");
 
         // Failure after the first item has been restored must roll back stock AND the correction.
-        long second=catalog.createProduct(new CatalogService.Product("REV-QA-2","Outro produto",amount("40"),BigDecimal.ZERO,true)).block().get("id");
+        long second=catalog.createProduct(key(),new CatalogService.Product("REV-QA-2","Outro produto",amount("40"),BigDecimal.ZERO,true),"test").block().get("id");
         long multi=trades.confirm(false,key(),new TradeService.Trade(null,List.of(
             new TradeService.Item(product,amount("2"),amount("30")),
             new TradeService.Item(second,amount("3"),amount("40"))),amount("10"),"PIX",first,false,null),"test").block().get("id");

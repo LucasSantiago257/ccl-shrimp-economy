@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono;
 public class FinanceService {
     public record Allocation(@Positive long titleId,@NotNull @DecimalMin("0.01") @Digits(integer=12,fraction=2) BigDecimal amount) {}
     public record Payment(@NotBlank @Pattern(regexp="CASH|PIX|TRANSFER|CARD") String method,
-        @NotEmpty @Size(max=100) List<@Valid Allocation> allocations) {}
+        @NotEmpty @Size(max=100) List<@NotNull @Valid Allocation> allocations) {}
     public record Expense(@NotBlank @Size(max=250) String description,@NotBlank @Size(max=80) String category,
         @NotNull @DecimalMin("0.01") @Digits(integer=12,fraction=2) BigDecimal amount,
         @NotNull @DecimalMin("0") @Digits(integer=12,fraction=2) BigDecimal paidAmount,

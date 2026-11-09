@@ -31,6 +31,14 @@ Compras e vendas aceitam `from` e `to` inclusivos, opcionais em conjunto, para i
 
 Depois de autenticar, obtenha novamente o CSRF antes dos comandos. O navegador inclui o cookie HttpOnly automaticamente. Não usar Basic Auth.
 
+Login aceita até 20 tentativas por origem em cada minuto UTC, incluindo tentativas bem-sucedidas. Exceder o limite retorna 429 com `Retry-After` em segundos. A contagem é atômica e compartilhada no MySQL, inclusive após reinícios e entre instâncias; guarda hash da origem e remove janelas antigas. Não é um bloqueio global da conta. Por padrão, usa o endereço da conexão e ignora cabeçalhos de origem. `APP_TRUST_LOGIN_PROXY=true` permite usar `X-Real-IP` somente em implantação cujo backend seja acessível exclusivamente por um proxy confiável que sobrescreva esse cabeçalho. O Compose habilita isso para seu Nginx e mantém o backend em loopback. A proteção continua exigindo CSRF.
+
+## Idempotência dos cadastros
+
+POST de `/api/v1/customers`, `/api/v1/suppliers` e `/api/v1/products` também exige `Idempotency-Key` de 16 a 64 caracteres (`A-Z`, `a-z`, `0-9`, `_`, `-`). Repetir a mesma chave, corpo, tipo de operação e usuário devolve o mesmo ID, inclusive com requisições concorrentes. Reutilizar a chave para outro conteúdo ou operação retorna 409. Cliente e fornecedor não passam a ter nome único; a garantia cobre o reenvio da mesma operação. O cadastro de produto e seu saldo inicial são atômicos.
+
+Elementos nulos nas listas `items` e `allocations` são rejeitados antes da execução de vendas, compras e baixas. O fluxo de recriação também valida os elementos antes de gravar.
+
 `remember=true` emite `MARE_REMEMBER`, cookie HttpOnly, SameSite=Lax, caminho `/api`, com validade fixa de 30 dias. Em HTTPS (APP_PUBLIC_URL ou conexão TLS direta), usa Secure. O banco guarda somente o SHA-256 do token aleatório de 256 bits e a versão da conta. Sem sessão, o token autentica cada requisição após verificar prazo e versão no banco; continua funcionando após reinício do backend. A sessão normal segue com 8 horas de inatividade e cookie de sessão. Não há armazenamento de senha/token em localStorage. Logout revoga o token daquele dispositivo e encerra sua sessão. Novo login sem a opção revoga o token anterior do dispositivo. Troca/reset de senha ou alteração do usuário revogam todos os acessos lembrados por versão; CSRF continua obrigatório. Após 30 dias é necessário informar a senha novamente.
 
 ## Perfil e recuperação

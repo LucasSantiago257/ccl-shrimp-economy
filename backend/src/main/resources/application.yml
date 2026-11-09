@@ -29,6 +29,7 @@ server:
         http-only: true
         same-site: lax
 app:
+  trust-login-proxy: ${APP_TRUST_LOGIN_PROXY:false}
   username: ${APP_ADMIN_USERNAME:admin}
   password: ${APP_ADMIN_PASSWORD}
   fallback-mail: ${FALLBACK_MAIL:}

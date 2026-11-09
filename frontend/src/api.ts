@@ -7,7 +7,7 @@ async function result<T>(response: Response): Promise<T> {
   if (!response.ok) {
     if (response.status === 401) window.dispatchEvent(new Event('session-expired'));
     const body = await response.json().catch(() => ({}));
-    const message = body.message || (response.status === 401 ? 'Usuário ou senha inválidos, ou sessão expirada.' : response.status === 403 ? 'A sessão de segurança expirou. Atualize a página e tente novamente.' : 'Não foi possível concluir a operação.');
+    const message = body.message || (response.status === 401 ? 'Usuário ou senha inválidos, ou sessão expirada.' : response.status === 403 ? 'A sessão de segurança expirou. Atualize a página e tente novamente.' : response.status === 429 ? 'Muitas tentativas. Aguarde um minuto e tente novamente.' : 'Não foi possível concluir a operação.');
     throw new ApiError(body.errors?.length ? `${message} ${body.errors.join(' ')}` : message, response.status);
   }
   return response.status === 204 || response.headers.get('content-length') === '0' ? undefined as T : response.text().then(text => text ? JSON.parse(text) as T : undefined as T);

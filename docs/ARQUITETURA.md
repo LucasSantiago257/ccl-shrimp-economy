@@ -86,7 +86,7 @@ A consulta inteira usa uma transação somente de leitura e o isolamento padrão
 
 ## Autenticação e execução
 
-Administrador único carregado do ambiente; senha BCrypt, sessão WebFlux, CSRF em login e comandos, logout por POST. O front-end não armazena credenciais. Os containers locais têm escopo de rede próprio e os endpoints publicados são limitados ao loopback do computador. Para produção: HTTPS, cookies Secure, gestão de usuários, limitação de tentativas, gestão de segredos, backup/restore e monitoramento.
+Administrador único persistido no MySQL, inicializado pelo ambiente, com senha BCrypt. Mudança/reset de senha incrementa a versão da conta e revoga sessões e acessos lembrados. O login passa por limitação por origem antes de FORM_LOGIN: janelas de 20 tentativas por minuto são compartilhadas no MySQL e sobrevivem a reinícios. CSRF protege login e comandos; logout é POST. O front-end não armazena credenciais. O cookie de lembrar acesso é HttpOnly e guarda um token aleatório cujo hash fica no banco. Os containers locais têm escopo de rede próprio e os endpoints publicados são limitados ao loopback. X-Real-IP só é confiável com a opção explícita e um proxy restrito que sobrescreve esse cabeçalho. Para produção: HTTPS, cookies Secure, gestão de segredos, backup/restore e monitoramento.
 
 ## Próximas etapas do produto
 

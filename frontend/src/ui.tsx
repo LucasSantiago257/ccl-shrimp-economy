@@ -5,7 +5,7 @@ import { ReplacementContext, postingPaths } from './postingFlow';
 import type { Num } from './types';
 
 export const money = (value: Num = 0) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
-export const kg = (value: Num = 0) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(Number(value)) + ' kg';
+export { kg } from './weight';
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const date = (value: string) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Bahia', dateStyle: 'short' }).format(new Date(value.includes('T') ? value + (value.endsWith('Z') ? '' : 'Z') : value + 'T12:00:00Z'));
 export const methods = { CASH: 'Dinheiro', PIX: 'Pix', TRANSFER: 'Transferência', CARD: 'Cartão' };

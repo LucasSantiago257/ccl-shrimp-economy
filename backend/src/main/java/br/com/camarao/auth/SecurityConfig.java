@@ -14,12 +14,9 @@ public class SecurityConfig {
     @Bean
     ReactiveUserDetailsService users(AccountService accounts) { return accounts::find; }
     @Bean
-    SecurityWebFilterChain security(ServerHttpSecurity http,AccountService accounts,AuthThrottle throttle,RememberedLoginService remembered) {
+    SecurityWebFilterChain security(ServerHttpSecurity http,AccountService accounts,LoginThrottle throttle,RememberedLoginService remembered) {
         http.addFilterBefore(remembered::filter,org.springframework.security.config.web.server.SecurityWebFiltersOrder.AUTHENTICATION);
-        http.addFilterBefore((exchange,chain)->{
-            if(exchange.getRequest().getMethod()==org.springframework.http.HttpMethod.POST && exchange.getRequest().getPath().value().equals("/api/login")) throttle.check("login",20);
-            return chain.filter(exchange);
-        },org.springframework.security.config.web.server.SecurityWebFiltersOrder.AUTHENTICATION);
+        http.addFilterBefore(throttle::filter,org.springframework.security.config.web.server.SecurityWebFiltersOrder.FORM_LOGIN);
         http.addFilterAfter((exchange,chain)->
             org.springframework.security.core.context.ReactiveSecurityContextHolder.getContext()
                 .filter(c->c.getAuthentication()!=null && c.getAuthentication().isAuthenticated())

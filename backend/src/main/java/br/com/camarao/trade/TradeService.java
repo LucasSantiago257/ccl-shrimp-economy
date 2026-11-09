@@ -22,7 +22,7 @@ public class TradeService {
         @NotNull @DecimalMin("0.000001") @Digits(integer=12,fraction=6) BigDecimal unitPrice) {
         public BigDecimal total() { return Rules.money(quantity.multiply(unitPrice)); }
     }
-    public record Trade(@Positive Long partyId,@NotEmpty @Size(max=100) List<@Valid Item> items,
+    public record Trade(@Positive Long partyId,@NotEmpty @Size(max=100) List<@NotNull @Valid Item> items,
         @NotNull @DecimalMin("0") @Digits(integer=12,fraction=2) BigDecimal paidAmount,
         @NotBlank @Pattern(regexp="CASH|PIX|TRANSFER|CARD") String method,@NotNull LocalDate dueDate,Boolean payInFull,
         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)

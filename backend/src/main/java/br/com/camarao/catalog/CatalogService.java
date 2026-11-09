@@ -17,7 +17,8 @@ public class CatalogService {
         @NotNull @DecimalMin("0.000001") @Digits(integer=12,fraction=6) BigDecimal suggestedPrice,
         @NotNull @DecimalMin("0") @Digits(integer=10,fraction=3) BigDecimal minimumStock, @NotNull Boolean active) {}
     private final Sql sql;
-    public CatalogService(Sql sql) { this.sql = sql; }
+    private final Idempotency idempotency;
+    public CatalogService(Sql sql,Idempotency idempotency) { this.sql = sql;this.idempotency=idempotency; }
     private String table(boolean customer) { return customer ? "customers" : "suppliers"; }
     public Mono<PageResult> partners(boolean customer,PageQuery page,boolean activeOnly) {
         String field = customer ? "customer_id" : "supplier_id";
@@ -27,9 +28,9 @@ public class CatalogService {
             "p.name,p.id",Map.of("q",page.like(),"active",activeOnly?1:0),page,"balance");
     }
     @Transactional
-    public Mono<Map<String,Long>> createPartner(boolean customer, Partner p) {
-        return sql.insert("INSERT INTO "+table(customer)+"(name,phone,document,notes,active) VALUES(:name,:phone,:document,:notes,:active)",partnerParams(p))
-            .map(id -> Map.of("id",id));
+    public Mono<Map<String,Long>> createPartner(boolean customer,String key,Partner p,String actor) {
+        return idempotency.run(key,customer?"CREATE_CUSTOMER":"CREATE_SUPPLIER",p,actor,()->
+            sql.insert("INSERT INTO "+table(customer)+"(name,phone,document,notes,active) VALUES(:name,:phone,:document,:notes,:active)",partnerParams(p)));
     }
     @Transactional
     public Mono<Void> editPartner(boolean customer, long id, Partner p) {
@@ -48,9 +49,10 @@ public class CatalogService {
             "p.name,p.id",Map.of("q",page.like(),"active",activeOnly?1:0,"stock",inStockOnly?1:0),page,"quantity","stock_value");
     }
     @Transactional
-    public Mono<Map<String,Long>> createProduct(Product p) {
-        return sql.insert("INSERT INTO products(code,name,suggested_price,minimum_stock,active) VALUES(:code,:name,:price,:minimum,:active)",productParams(p))
-            .flatMap(id -> sql.update("INSERT INTO stock_balances(product_id) VALUES(:id)",Map.of("id",id)).thenReturn(Map.of("id",id)));
+    public Mono<Map<String,Long>> createProduct(String key,Product p,String actor) {
+        return idempotency.run(key,"CREATE_PRODUCT",p,actor,()->
+            sql.insert("INSERT INTO products(code,name,suggested_price,minimum_stock,active) VALUES(:code,:name,:price,:minimum,:active)",productParams(p))
+                .flatMap(id -> sql.update("INSERT INTO stock_balances(product_id) VALUES(:id)",Map.of("id",id)).thenReturn(id)));
     }
     @Transactional
     public Mono<Void> editProduct(long id, Product p) {

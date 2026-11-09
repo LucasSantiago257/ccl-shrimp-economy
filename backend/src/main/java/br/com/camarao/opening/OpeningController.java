@@ -11,6 +11,8 @@ import reactor.core.publisher.Mono;
 public class OpeningController {
     private final OpeningService service;
     public OpeningController(OpeningService service) {this.service=service;}
+    public record Preference(@jakarta.validation.constraints.NotNull Boolean dismissed) {}
+    @PutMapping("/preference") public Mono<Void> preference(@Valid @RequestBody Preference body) {return service.preference(body.dismissed());}
     @GetMapping public Mono<Map<String,Object>> status() {return service.status();}
     @PostMapping public Mono<Map<String,Long>> confirm(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody OpeningService.Request body,Principal actor) {return service.confirm(key,body,actor.getName());}
     @PostMapping("/{id}/undo") public Mono<Map<String,Long>> undo(@PathVariable long id,@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody OpeningService.Undo body,Principal actor) {return service.undo(key,id,body,actor.getName());}

@@ -2,18 +2,18 @@ import {useContext,useRef,useState} from 'react';
 import * as api from './api';
 import {RemoteSelect} from './Pagination';
 import type {Partner,Product,Num} from './types';
-import {ClosedDayContext,Field,Modal,MutationForm,Panel,Status,date,kg,money,today,useResource} from './ui';
+import {ClosedDayContext,Field,Icon,Modal,MutationForm,Panel,Status,date,kg,money,today,useResource} from './ui';
 
 type StockDraft={key:string;productId:string;name:string;quantity:string;unitCost:string};
 type DebtDraft={key:string;kind:string;partyId:string;partyName:string;description:string;amount:string;dueDate:string};
-type Position={configured:boolean;hasPostings:boolean;dayClosed:boolean;canUndo:boolean;date:string;
+type Position={configured:boolean;dismissed:boolean;hasPostings:boolean;dayClosed:boolean;canUndo:boolean;date:string;
  opening:{id:number;cash_amount:Num;note:string;occurred_at:string;created_by:string};
  stock:{id:number;product_name:string;quantity:Num;unit_cost:Num;total_cost:Num}[];
  debts:{id:number;nature:string;opening_description:string;amount:Num;due_date:string}[]};
 const stockRow=():StockDraft=>({key:crypto.randomUUID(),productId:'',name:'',quantity:'',unitCost:''});
 const debtRow=():DebtDraft=>({key:crypto.randomUUID(),kind:'RECEIVABLE',partyId:'',partyName:'',description:'',amount:'',dueDate:today()});
 
-export function OpeningPage({revision,saved,navigate}:{revision:number;saved:()=>void;navigate:(page:string)=>void}) {
+export function OpeningPage({revision,saved,navigate,onSkip}:{revision:number;saved:()=>void;navigate:(page:string)=>void;onSkip:()=>void}) {
  const resource=useResource<Position>('/api/v1/opening-balances',revision);
  const closed=useContext(ClosedDayContext);
  const [cash,setCash]=useState('0'),[note,setNote]=useState('');
@@ -21,6 +21,11 @@ export function OpeningPage({revision,saved,navigate}:{revision:number;saved:()=
  const [review,setReview]=useState(false),[confirmed,setConfirmed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[undo,setUndo]=useState(false);
  const key=useRef(crypto.randomUUID());
  const position=resource.data;
+ async function skip(){
+  if(busy)return;setBusy(true);setError('');
+  try{await api.mutate('/api/v1/opening-balances/preference',{dismissed:true},crypto.randomUUID(),'PUT');onSkip();}
+  catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  function changeStock(id:string,patch:Partial<StockDraft>){setStock(rows=>rows.map(r=>r.key===id?{...r,...patch}:r));}
  function changeDebt(id:string,patch:Partial<DebtDraft>){setDebts(rows=>rows.map(r=>r.key===id?{...r,...patch}:r));}
  const stockValue=stock.reduce((sum,s)=>sum+Number(s.quantity)*Number(s.unitCost),0);
@@ -46,7 +51,9 @@ export function OpeningPage({revision,saved,navigate}:{revision:number;saved:()=
  </> : position.hasPostings ? <Panel title="O sistema já possui lançamentos"><div className="opening-info"><p>O saldo inicial deve ser configurado antes da primeira compra, venda, despesa, perda ou pagamento. Isso evita somar novamente valores já registrados.</p><p>Os dados existentes estão preservados. Consulte o Financeiro e o Estoque para conferir sua posição.</p></div></Panel>
  : position.dayClosed||closed ? <p className="alert info">O dia está fechado. A implantação poderá ser registrada no próximo dia aberto.</p>
  : <>
-  <Panel title="Comece com a posição real do seu negócio" hint={'Data de implantação: '+date(position.date)+' · Horário da Bahia'}><div className="opening-info">
+  <Panel title="Comece com a posição real do seu negócio" hint={'Data de implantação: '+date(position.date)+' · Horário da Bahia'} action={<button className="icon-button" type="button" title="Continuar sem saldo inicial" aria-label="Dispensar saldo inicial" disabled={busy} onClick={()=>void skip()}><Icon name="close"/></button>}><div className="opening-info">
+   <p className="subtle">Preenchimento opcional. Use o X para continuar com os saldos em zero. Você pode voltar aqui antes do primeiro lançamento.</p>
+   {error&&!review&&<p className="alert error" role="alert">{error}</p>}
    <p>Informe o que já existia antes de começar a usar a Maré: mercadoria disponível, dinheiro e contas ainda em aberto. Vendas e compras antigas não precisam ser recriadas.</p>
    <p>Esses valores não contam como venda, compra ou lucro. O custo do estoque será usado nas próximas vendas.</p>
    <div className="opening-actions"><button className="text-button" onClick={()=>navigate('products')}>Cadastrar produtos</button><button className="text-button" onClick={()=>navigate('customers')}>Cadastrar clientes</button><button className="text-button" onClick={()=>navigate('suppliers')}>Cadastrar fornecedores</button></div>
@@ -92,4 +99,15 @@ function StockTable({rows}:{rows:{id:number;product_name:string;quantity:Num;uni
 }
 function DebtTable({rows}:{rows:{key:string;kind:string;description:string;amount:Num;dueDate:string}[]}){
  return !rows.length?<p className="subtle opening-info">Sem contas antigas informadas.</p>:<div className="table-wrap"><table><thead><tr><th>Conta</th><th>Descrição</th><th>Vencimento</th><th>Valor restante</th></tr></thead><tbody>{rows.map(r=><tr key={r.key}><td>{r.kind}</td><td>{r.description}</td><td>{date(r.dueDate)}</td><td>{money(r.amount)}</td></tr>)}</tbody></table></div>;
+}
+
+export function OpeningReminder({revision,navigate}:{revision:number;navigate:(page:string)=>void}){
+ const [hidden,setHidden]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const resource=useResource<Position>('/api/v1/opening-balances',revision);
+ const p=resource.data;
+ if(hidden||!p||p.configured||p.dismissed||p.hasPostings||p.dayClosed)return null;
+ return <section className="opening-reminder" aria-label="Saldo inicial opcional"><div><strong>Já tinha estoque, dinheiro ou contas em aberto?</strong><p>Traga os saldos das suas planilhas antes do primeiro lançamento. Se preferir, comece com os saldos em zero.</p>{error&&<p role="alert">{error}</p>}</div>
+  <button className="button secondary small" onClick={()=>navigate('opening')}>Configurar saldo inicial</button>
+  <button className="icon-button" aria-label="Dispensar saldo inicial" title="Continuar sem saldo inicial" disabled={busy} onClick={async()=>{if(busy)return;setBusy(true);setError('');try{await api.mutate('/api/v1/opening-balances/preference',{dismissed:true},crypto.randomUUID(),'PUT');setHidden(true);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}><Icon name="close"/></button>
+ </section>;
 }

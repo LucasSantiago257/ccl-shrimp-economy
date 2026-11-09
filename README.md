@@ -208,6 +208,8 @@ O navegador de teste é separado do seu perfil pessoal. O primeiro teste valida 
 
 Em **Saldo inicial**, traga estoque com custo, dinheiro e contas antigas de suas planilhas antes do primeiro lançamento. A conferência não gera compras, vendas ou lucro fictício. Em **Fechamento**, use **Exportar resumo CSV**: uma linha por mês ou um consolidado de todo o período, sem juntar snapshots diários. Veja [regras e exemplos](docs/SALDOS_E_EXPORTACAO.md).
 
+O saldo inicial é opcional: use o **X** no lembrete da Visão geral ou na tela da implantação para continuar com os saldos em zero. A escolha fica salva e o menu permite configurar depois, enquanto ainda não houver lançamentos.
+
 ## Limites desta entrega
 
 A tela de entrada oferece **Lembrar meu login por 30 dias**, desmarcada por padrão. Em um dispositivo pessoal, permite voltar ao sistema sem digitar a senha, inclusive após reiniciar o navegador ou o backend. **Sair do sistema** revoga esse acesso no dispositivo; trocar ou redefinir a senha invalida todos os acessos antigos. Em produção, configure `APP_PUBLIC_URL` com HTTPS para que o cookie persistente seja Secure. A migração V8 guarda somente hashes dos tokens no MySQL.

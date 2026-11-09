@@ -8,7 +8,7 @@ import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
 import { AnalyticsPage } from './AnalyticsPage';
 import { ProfilePage, RecoveryPage } from './ProfilePage';
-import { OpeningPage } from './OpeningPage';
+import { OpeningPage, OpeningReminder } from './OpeningPage';
 import './opening.css';
 import { CorrectionContext, CorrectionModal, CorrectionsPage } from './Corrections';
 import type { CorrectionTarget } from './Corrections';
@@ -101,9 +101,9 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
           {replacement.kind==='PAYMENT' ? 'Escolha a conta abaixo e registre o pagamento ou recebimento correto.' : 'Preencha o formulário com os dados corretos.'} O vínculo com o registro cancelado será feito ao salvar.</span>
         <button className="text-button" onClick={()=>setReplacement(null)}>Sair da correção</button>
       </div>}
-      {page === 'dashboard' && <Dashboard revision={revision} navigate={navigate} />}
+      {page === 'dashboard' && <><OpeningReminder revision={revision} navigate={navigate}/><Dashboard revision={revision} navigate={navigate} /></>}
       {page === 'profile' && <ProfilePage onChanged={signOut}/>}
-      {page === 'opening' && <OpeningPage revision={revision} saved={saved} navigate={navigate}/>}
+      {page === 'opening' && <OpeningPage revision={revision} saved={saved} navigate={navigate} onSkip={()=>{setRevision(r=>r+1);navigate('dashboard');}}/>}
       {page === 'analytics' && <AnalyticsPage revision={revision} />}
       {page === 'corrections' && <CorrectionsPage revision={revision} navigate={navigate} />}
       {(page === 'customers' || page === 'suppliers') && <PartnersPage key={page} customer={page === 'customers'} revision={revision} saved={saved} />}

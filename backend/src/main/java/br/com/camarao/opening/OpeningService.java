@@ -52,7 +52,12 @@ public class OpeningService {
             return sql.all("SELECT * FROM opening_stock WHERE opening_id=:id ORDER BY id",Map.of("id",id)).collectList().flatMap(rows->{result.put("stock",rows);return sql.all("SELECT * FROM financial_titles WHERE opening_id=:id ORDER BY id",Map.of("id",id)).collectList();})
                 .map(rows->{result.put("debts",rows);return result;});
         })).flatMap(result->sql.one("SELECT COUNT(*) AS total FROM period_closures WHERE date_from<=:day AND date_to>=:day",Map.of("day",ClosingSchedule.day(periods.now())))
-            .map(row->{boolean closed=Sql.id(row,"total")>0 || ClosingSchedule.reachedCutoff(periods.now());result.put("dayClosed",closed);if(closed)result.put("canUndo",false);return result;}));
+            .map(row->{boolean closed=Sql.id(row,"total")>0 || ClosingSchedule.reachedCutoff(periods.now());result.put("dayClosed",closed);if(closed)result.put("canUndo",false);return result;}))
+            .flatMap(result->sql.one("SELECT IF(dismissed,1,0) AS dismissed FROM opening_preferences WHERE id=1",Map.of())
+                .map(preference->{result.put("dismissed",Sql.id(preference,"dismissed")==1);return result;}));
+    }
+    public Mono<Void> preference(boolean dismissed) {
+        return sql.update("UPDATE opening_preferences SET dismissed=:dismissed WHERE id=1",Map.of("dismissed",dismissed)).then();
     }
     @Transactional
     public Mono<Map<String,Long>> confirm(String key,Request body,String actor) {
@@ -77,7 +82,7 @@ public class OpeningService {
                 var params=new HashMap<String,Object>(Map.of("opening",id,"nature",debt.nature(),"description",debt.description().trim(),"amount",debt.amount(),"due",debt.dueDate(),"at",now,"purchase",Boolean.TRUE.equals(debt.purchaseRelated())));params.put("party",debt.partyId());
                 Mono<Void> partner=debt.partyId()==null?Mono.empty():catalog.requireActivePartner(customer,debt.partyId());
                 return partner.then(sql.insert("INSERT INTO financial_titles(nature,"+(customer?"customer_id":"supplier_id")+",amount,issued_at,due_date,opening_id,opening_description,opening_purchase) VALUES(:nature,:party,:amount,:at,:due,:opening,:description,:purchase)",params));
-            })).then(Mono.just(id)));
+            })).then(preference(false)).thenReturn(id));
     }
     @Transactional
     public Mono<Map<String,Long>> undo(String key,long id,Undo body,String actor) {

@@ -23,6 +23,8 @@ API autenticada e somente de leitura:
 
 A tela **Saldo inicial**, em Cadastros, recebe a posição anterior às primeiras operações na Maré:
 
+O preenchimento é opcional. Na Visão geral aparece um lembrete com **X** para dispensar. A própria tela de Saldo inicial também tem um **X** para voltar à operação sem informar valores. A escolha fica salva no servidor, inclusive após recarregar ou acessar por outro dispositivo; não cria implantação nem registros financeiros. É possível retornar pelo menu antes do primeiro lançamento. Confirmar uma implantação posteriormente limpa essa preferência.
+
 1. Dinheiro em caixa e bancos, agregado na conta operacional.
 2. Produtos disponíveis, em kg, e seu custo médio de aquisição. O sistema calcula o valor de estoque; o preço de venda não é usado como custo.
 3. Contas antigas a receber por cliente e contas antigas a pagar. Compras de mercadoria e outras obrigações são identificadas separadamente. Fornecedor continua opcional nas contas a pagar.
@@ -58,6 +60,7 @@ Os snapshots novos usam schemaVersion 4 e incluem implantação, estoque inicial
 API:
 
 - `GET /api/v1/opening-balances`: configured, hasPostings, dayClosed, canUndo, date, opening, stock e debts.
+- `PUT /api/v1/opening-balances/preference`: dismissed boolean obrigatório, exige autenticação e CSRF. Preferência de interface idempotente, sem efeito nos saldos; GET inclui o campo dismissed.
 - `POST /api/v1/opening-balances`: cashAmount, stock[{productId,quantity,unitCost}], debts[{nature,partyId,description,amount,dueDate,purchaseRelated}], note e confirmed=true. Exige CSRF, autenticação e Idempotency-Key.
 - `POST /api/v1/opening-balances/{id}/undo`: reason de 5 a 500 caracteres, com as mesmas proteções.
 

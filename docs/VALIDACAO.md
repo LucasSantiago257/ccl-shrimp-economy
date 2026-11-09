@@ -163,3 +163,7 @@ O build passou com 33 testes Java e dois de formatação de pesos. Os três test
 `compact-export-load.mjs` comparou um ano com 10 mil vendas sintéticas: resumo de 12 linhas com 3.260 bytes contra snapshot completo de 12.102.361 bytes. Os totais de vendas e resultado foram conferidos; o resumo foi gerado em aproximadamente 455 ms no ambiente local. A massa foi criada diretamente no banco de teste para medir volume, sem representar importação retroativa suportada pela API.
 
 A regressão geral aprovou os 54 cenários existentes, além da interface de fechamento, download completo de auditoria e preservação dos bytes após editar cadastros. Nenhum saldo inicial foi aplicado automaticamente ao banco operacional. Consulte [Saldo inicial e exportação](SALDOS_E_EXPORTACAO.md).
+
+## Saldo inicial opcional — 08/11/2026
+
+`tests/opening-skip.browser.mjs` aprovou os X da Visão geral e da implantação, escolha persistida após recarregar, configuração manual posterior, limpeza da preferência ao confirmar e compras normais sem implantação. Também verificou ausência de saldo fictício, autenticação, CSRF, entrada inválida e tela de 390 px. O build Java e os testes de formatação passaram. O banco de teste é separado do operacional.

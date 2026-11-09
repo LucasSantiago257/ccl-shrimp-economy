@@ -13,12 +13,13 @@ import reactor.core.publisher.Mono;
 public class CatalogService {
     public record Partner(@NotBlank @Size(max=160) String name, @NotNull @Size(max=30) String phone,
         @NotNull @Size(max=30) String document, @NotNull @Size(max=1000) String notes, @NotNull Boolean active) {}
-    public record Product(@NotBlank @Size(max=40) String code, @NotBlank @Size(max=160) String name,
+    public record Product(@Size(max=40) String code, @NotBlank @Size(max=160) String name,
         @NotNull @DecimalMin("0.000001") @Digits(integer=12,fraction=6) BigDecimal suggestedPrice,
         @NotNull @DecimalMin("0") @Digits(integer=10,fraction=3) BigDecimal minimumStock, @NotNull Boolean active) {}
     private final Sql sql;
     private final Idempotency idempotency;
-    public CatalogService(Sql sql,Idempotency idempotency) { this.sql = sql;this.idempotency=idempotency; }
+    private final ProductCodes codes;
+    public CatalogService(Sql sql,Idempotency idempotency,ProductCodes codes) { this.sql = sql;this.idempotency=idempotency;this.codes=codes; }
     private String table(boolean customer) { return customer ? "customers" : "suppliers"; }
     public Mono<PageResult> partners(boolean customer,PageQuery page,boolean activeOnly) {
         String field = customer ? "customer_id" : "supplier_id";
@@ -51,20 +52,21 @@ public class CatalogService {
     @Transactional
     public Mono<Map<String,Long>> createProduct(String key,Product p,String actor) {
         return idempotency.run(key,"CREATE_PRODUCT",p,actor,()->
-            sql.insert("INSERT INTO products(code,name,suggested_price,minimum_stock,active) VALUES(:code,:name,:price,:minimum,:active)",productParams(p))
+            codes.lock().then(Mono.defer(()->codes.create(p.code(),p.name())))
+                .flatMap(code->sql.insert("INSERT INTO products(code,name,suggested_price,minimum_stock,active) VALUES(:code,:name,:price,:minimum,:active)",productParams(p,code)))
                 .flatMap(id -> sql.update("INSERT INTO stock_balances(product_id) VALUES(:id)",Map.of("id",id)).thenReturn(id)));
     }
     @Transactional
     public Mono<Void> editProduct(long id, Product p) {
-        return sql.one("SELECT id FROM products WHERE id=:id FOR UPDATE",Map.of("id",id))
+        return codes.lock().then(sql.one("SELECT id,code FROM products WHERE id=:id FOR UPDATE",Map.of("id",id)))
             .switchIfEmpty(Mono.error(Rules.missing("Produto não encontrado.")))
-            .flatMap(row -> {
-                var params = new java.util.HashMap<String,Object>(productParams(p)); params.put("id",id);
+            .flatMap(row -> codes.edit(p.code(),(String)row.get("code")).flatMap(code->{
+                var params = new java.util.HashMap<String,Object>(productParams(p,code)); params.put("id",id);
                 return sql.update("UPDATE products SET code=:code,name=:name,suggested_price=:price,minimum_stock=:minimum,active=:active WHERE id=:id",params);
-            }).then();
+            })).then();
     }
-    private Map<String,Object> productParams(Product p) {
-        return Map.of("code",p.code().trim(),"name",p.name().trim(),"price",p.suggestedPrice(),"minimum",p.minimumStock(),"active",p.active());
+    private Map<String,Object> productParams(Product p,String code) {
+        return Map.of("code",code,"name",p.name().trim(),"price",p.suggestedPrice(),"minimum",p.minimumStock(),"active",p.active());
     }
     public Mono<Void> requireActivePartner(boolean customer, long id) {
         return sql.one("SELECT * FROM "+table(customer)+" WHERE id=:id FOR SHARE",Map.of("id",id))

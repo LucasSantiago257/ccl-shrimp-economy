@@ -167,3 +167,9 @@ A regressão geral aprovou os 54 cenários existentes, além da interface de fec
 ## Saldo inicial opcional — 08/11/2026
 
 `tests/opening-skip.browser.mjs` aprovou os X da Visão geral e da implantação, escolha persistida após recarregar, configuração manual posterior, limpeza da preferência ao confirmar e compras normais sem implantação. Também verificou ausência de saldo fictício, autenticação, CSRF, entrada inválida e tela de 390 px. O build Java e os testes de formatação passaram. O banco de teste é separado do operacional.
+
+## Código automático de produto — 08/11/2026
+
+`tests/product-code.browser.mjs` aprovou seis cenários em MySQL isolado (`camarao-product-code-v2-qa`): código omitido/nulo/em branco; sequência considerando o produto existente; reenvio idempotente; dez cadastros simultâneos com códigos únicos; compatibilidade com códigos manuais, colisões pela comparação do MySQL e passagem de 999 para 1000; edição sem trocar identificador, inclusive após renomear e sem reutilizar números antigos. O formulário de cadastro e edição foi conferido em 390 px, sem campo de código e sem rolagem horizontal. Dois testes Java adicionais verificam normalização do prefixo e validação do código opcional. A migração V12 é aditiva e preserva os produtos existentes.
+
+Para repetir em um banco novo: `docker compose -p camarao-product-code-qa -f compose.yaml -f compose.test.yaml -f compose.profile-test.yaml up -d --build --wait`, seguido de `node tests/product-code.browser.mjs`. O teste espera a carga inicial de um produto `CAM-001`; use um projeto sem dados anteriores. Não executar contra o banco operacional.

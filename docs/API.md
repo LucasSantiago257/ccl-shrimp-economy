@@ -52,6 +52,8 @@ As senhas aceitam pelo menos 12 caracteres e até 72 bytes UTF-8 para BCrypt. Lo
 
 ## Cadastros
 
+O código do produto é interno e não aparece no formulário. POST `/products` aceita `code` omitido, nulo ou em branco: o servidor usa as três primeiras letras do nome, em maiúsculas e sem acentos, seguidas da sequência por prefixo (`CAM-001`, `CAM-002`…). Considera códigos existentes e não reutiliza números já reservados. Nomes curtos usam as letras disponíveis; sem letras, o prefixo é `PRO`. A sequência continua após 999. A geração e o cadastro são atômicos, inclusive em requisições simultâneas. A API mantém compatibilidade com códigos manuais; PUT sem código preserva o identificador atual, mesmo ao renomear o produto.
+
 - GET/POST `/customers` e `/suppliers`; PUT `/{id}` para editar/inativar.
 - GET aceita `q` (nome, telefone ou documento) e `activeOnly=true`.
 - GET/POST `/products`; PUT `/products/{id}`.

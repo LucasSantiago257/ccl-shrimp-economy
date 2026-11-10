@@ -101,7 +101,7 @@ try{
  await test('Fechamento preserva implantação e bloqueia alterações',async()=>{
   const closed=await post('/api/v1/closings',{from:today,to:today,note:'Implantação conferida'});
   const snapshot=(await get('/api/v1/closings/'+closed.id)).snapshot;
-  assert.equal(snapshot.schemaVersion,4);assert.equal(snapshot.records.opening_balances.length,2);assert.equal(snapshot.records.opening_reversals.length,1);
+  assert.equal(snapshot.schemaVersion,5);assert.equal(snapshot.records.opening_balances.length,2);assert.equal(snapshot.records.opening_reversals.length,1);
   assert.equal(n(snapshot.report.metrics.initial_cash),500);
   await post('/api/v1/opening-balances/'+opening.id+'/undo',{reason:'Fechamento já preservado'},409);
   const exportFile=await c.request.get(base+'/api/v1/reports/export?from='+today+'&to='+today+'&grouping=total');assert.equal(exportFile.status(),200);

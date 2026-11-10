@@ -1,9 +1,9 @@
 export type Num = number | string;
 export interface Page<T> { items: T[]; page: number; size: number; total: number; totalPages: number; hasNext: boolean; hasPrevious: boolean; summary: Record<string, Num> }
 export interface Partner { id: number; name: string; phone: string; document: string; notes: string; active: boolean | number; balance: Num }
-export interface Product { id: number; code: string; name: string; active: boolean | number; suggested_price: Num; minimum_stock: Num; quantity: Num; stock_value: Num; average_cost: Num }
+export interface Product { id: number; code: string; name: string; active: boolean | number; suggested_price: Num; minimum_stock: Num; quantity: Num; stock_value: Num; average_cost: Num; box_weight_kg: Num }
 export interface Trade { correction_id?: number; id: number; party_name: string; total: Num; gross_total?: Num; discount_amount?: Num; quantity: Num; occurred_at: string; cost_total?: Num }
-export interface TradeItem { id: number; product_name: string; quantity: Num; unit_price: Num; total: Num }
+export interface TradeItem { id: number; product_name: string; quantity: Num; unit_price: Num; total: Num; box_count?: Num; box_weight_kg?: Num }
 export interface Title { opening_id?: number; opening_purchase?: boolean | number; cancelled_at?: string; correction_id?: number; id: number; nature: string; party_name: string; amount: Num; paid: Num; outstanding: Num; due_date: string; sale_id?: number; purchase_id?: number; expense_id?: number }
 export interface Settlement { remaining_amount?: Num; reversed_amount?: Num; correction_id?: number; id: number; amount: Num; direction: string; method: string; occurred_at: string; allocations: string }
 export interface Movement { event_key?: string; correction_id?: number; cancelled_by_correction?: number; id: number; product_name: string; type: string; quantity_delta: Num; value_delta: Num; reason: string; occurred_at: string; created_by: string }

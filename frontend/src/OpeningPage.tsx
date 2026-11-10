@@ -1,16 +1,19 @@
+import {QuantityFields} from './BoxQuantity';
+import {quantityKg} from './boxes';
+import type {QuantityDraft} from './boxes';
 import {useContext,useRef,useState} from 'react';
 import * as api from './api';
 import {RemoteSelect} from './Pagination';
 import type {Partner,Product,Num} from './types';
 import {ClosedDayContext,Field,Icon,Modal,MutationForm,Panel,Status,date,kg,money,today,useResource} from './ui';
 
-type StockDraft={key:string;productId:string;name:string;quantity:string;unitCost:string};
+type StockDraft=QuantityDraft & {key:string;productId:string;name:string;quantity:string;unitCost:string};
 type DebtDraft={key:string;kind:string;partyId:string;partyName:string;description:string;amount:string;dueDate:string};
 type Position={configured:boolean;dismissed:boolean;hasPostings:boolean;dayClosed:boolean;canUndo:boolean;date:string;
  opening:{id:number;cash_amount:Num;note:string;occurred_at:string;created_by:string};
  stock:{id:number;product_name:string;quantity:Num;unit_cost:Num;total_cost:Num}[];
  debts:{id:number;nature:string;opening_description:string;amount:Num;due_date:string}[]};
-const stockRow=():StockDraft=>({key:crypto.randomUUID(),productId:'',name:'',quantity:'',unitCost:''});
+const stockRow=():StockDraft=>({key:crypto.randomUUID(),productId:'',name:'',quantity:'',unit:'KG',boxWeight:'15',unitCost:''});
 const debtRow=():DebtDraft=>({key:crypto.randomUUID(),kind:'RECEIVABLE',partyId:'',partyName:'',description:'',amount:'',dueDate:today()});
 
 export function OpeningPage({revision,saved,navigate,onSkip}:{revision:number;saved:()=>void;navigate:(page:string)=>void;onSkip:()=>void}) {
@@ -28,13 +31,13 @@ export function OpeningPage({revision,saved,navigate,onSkip}:{revision:number;sa
  }
  function changeStock(id:string,patch:Partial<StockDraft>){setStock(rows=>rows.map(r=>r.key===id?{...r,...patch}:r));}
  function changeDebt(id:string,patch:Partial<DebtDraft>){setDebts(rows=>rows.map(r=>r.key===id?{...r,...patch}:r));}
- const stockValue=stock.reduce((sum,s)=>sum+Number(s.quantity)*Number(s.unitCost),0);
+ const stockValue=stock.reduce((sum,s)=>sum+Number(quantityKg(s))*Number(s.unitCost),0);
  const receivables=debts.filter(d=>d.kind==='RECEIVABLE').reduce((s,d)=>s+Number(d.amount),0);
  const payables=debts.filter(d=>d.kind!=='RECEIVABLE').reduce((s,d)=>s+Number(d.amount),0);
  async function confirm(){
   if(busy||!confirmed)return;setBusy(true);setError('');
   try{await api.mutate('/api/v1/opening-balances',{cashAmount:cash,note,confirmed:true,
-   stock:stock.map(s=>({productId:Number(s.productId),quantity:s.quantity,unitCost:s.unitCost})),
+   stock:stock.map(s=>({productId:Number(s.productId),quantity:quantityKg(s),unitCost:s.unitCost})),
    debts:debts.map(d=>({nature:d.kind==='RECEIVABLE'?'RECEIVABLE':'PAYABLE',partyId:d.partyId?Number(d.partyId):null,description:d.description,amount:d.amount,dueDate:d.dueDate,purchaseRelated:d.kind==='PURCHASE_PAYABLE'}))},key.current);
    saved();setReview(false);
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
@@ -58,15 +61,15 @@ export function OpeningPage({revision,saved,navigate,onSkip}:{revision:number;sa
    <p>Esses valores não contam como venda, compra ou lucro. O custo do estoque será usado nas próximas vendas.</p>
    <div className="opening-actions"><button className="text-button" onClick={()=>navigate('products')}>Cadastrar produtos</button><button className="text-button" onClick={()=>navigate('customers')}>Cadastrar clientes</button><button className="text-button" onClick={()=>navigate('suppliers')}>Cadastrar fornecedores</button></div>
   </div></Panel>
-  {!review?<form className="form opening-form" onSubmit={e=>{e.preventDefault();setError('');setConfirmed(false);setReview(true);}}>
+  {!review?<form className="form opening-form" onSubmit={e=>{e.preventDefault();setError('');if(stock.some(s=>!quantityKg(s))){setError('Confira as quantidades e os pesos das caixas.');return;}setConfirmed(false);setReview(true);}}>
    <h2>1. Dinheiro disponível</h2>
    <Field label="Dinheiro em caixa e bancos (R$)" hint="Some os saldos que já possui. Valor negativo representa saldo devedor; não repita essa dívida nas contas abaixo."><input type="number" step="0.01" required value={cash} onChange={e=>setCash(e.target.value)}/></Field>
    <div className="form-section-heading"><h2>2. Estoque disponível</h2><button type="button" className="text-button" disabled={stock.length>=100} onClick={()=>setStock(rows=>[...rows,stockRow()])}>Adicionar produto ao saldo</button></div>
    <p className="subtle">Informe apenas os quilos que ainda tem e o custo médio de aquisição. Não use o preço de venda.</p>
    {stock.map((s,index)=><div className="opening-row" key={s.key}>
     <div className="form-section-heading"><h3>Produto {index+1}</h3><button type="button" className="text-button" aria-label={'Remover produto '+(index+1)} onClick={()=>setStock(rows=>rows.filter(r=>r.key!==s.key))}>Remover</button></div>
-    <RemoteSelect<Product> path="/api/v1/products?activeOnly=true" label={'Produto do saldo '+(index+1)} value={s.productId} revision={revision} onSelect={p=>changeStock(s.key,{productId:p?String(p.id):'',name:p?.name||''})}/>
-    <div className="form-grid"><Field label={'Quantidade inicial '+(index+1)+' (kg)'}><input type="number" min="0.001" step="0.001" required value={s.quantity} onChange={e=>changeStock(s.key,{quantity:e.target.value})}/></Field><Field label={'Custo médio '+(index+1)+' / kg (R$)'}><input type="number" min="0.000001" step="0.000001" required value={s.unitCost} onChange={e=>changeStock(s.key,{unitCost:e.target.value})}/></Field></div>
+    <RemoteSelect<Product> path="/api/v1/products?activeOnly=true" label={'Produto do saldo '+(index+1)} value={s.productId} revision={revision} onSelect={p=>changeStock(s.key,{productId:p?String(p.id):'',name:p?.name||'',quantity:'',boxWeight:String(p?.box_weight_kg||15)})}/>
+    <QuantityFields value={s} change={patch=>changeStock(s.key,patch)} label={'Quantidade inicial '+(index+1)}/><div className="form-grid"><Field label={'Custo médio '+(index+1)+' / kg (R$)'}><input type="number" min="0.000001" step="0.000001" required value={s.unitCost} onChange={e=>changeStock(s.key,{unitCost:e.target.value})}/></Field></div>
    </div>)}
    <div className="form-section-heading"><h2>3. Contas antigas em aberto</h2><button type="button" className="text-button" disabled={debts.length>=200} onClick={()=>setDebts(rows=>[...rows,debtRow()])}>Adicionar conta antiga</button></div>
    <p className="subtle">Informe somente o valor que falta receber ou pagar. Valores já quitados ficam de fora.</p>
@@ -81,7 +84,7 @@ export function OpeningPage({revision,saved,navigate,onSkip}:{revision:number;sa
    <button className="button primary">Conferir saldo inicial</button>
   </form>:<Panel title="Confira antes de confirmar"><div className="opening-info">
    <div className="opening-summary"><p>Dinheiro disponível<strong>{money(cash)}</strong></p><p>Valor estimado do estoque<strong>{money(stockValue)}</strong></p><p>Contas a receber<strong>{money(receivables)}</strong></p><p>Contas a pagar<strong>{money(payables)}</strong></p></div>
-   <StockTable rows={stock.map((s,index)=>({id:index,product_name:s.name,quantity:s.quantity,unit_cost:s.unitCost,total_cost:Number(s.quantity)*Number(s.unitCost)}))}/>
+   <StockTable rows={stock.map((s,index)=>({id:index,product_name:s.name,quantity:quantityKg(s),unit_cost:s.unitCost,total_cost:Number(quantityKg(s))*Number(s.unitCost)}))}/>
    <DebtTable rows={debts.map(d=>({key:d.key,kind:d.kind==='RECEIVABLE'?'A receber':d.kind==='PURCHASE_PAYABLE'?'Compra a pagar':'Outra conta a pagar',description:(d.partyName?d.partyName+' · ':'')+d.description,amount:d.amount,dueDate:d.dueDate}))}/>
    <p className="alert info">Confirme apenas os saldos que existiam antes de usar a Maré. A implantação fica preservada após o primeiro lançamento ou o fechamento do dia.</p>
    <label className="checkbox"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>Conferi os saldos nas planilhas e não estou repetindo compras ou vendas.</label>

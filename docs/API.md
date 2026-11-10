@@ -52,6 +52,10 @@ As senhas aceitam pelo menos 12 caracteres e até 72 bytes UTF-8 para BCrypt. Lo
 
 ## Cadastros
 
+Produtos retornam `box_weight_kg` (padrão 15). PUT `/products/{id}/box-weight` recebe `{"boxWeightKg":"12.5"}`: valor positivo de 0,001 a 999999,999 kg, até três casas decimais. Exige sessão e CSRF. Muda somente a preferência de apresentação e de novos lançamentos; não movimenta estoque nem altera documentos históricos. Pode ser usado mesmo com o dia fechado.
+
+Itens de POST `/purchases` e `/sales` podem incluir `boxCount` e `boxWeightKg`, obrigatoriamente juntos e positivos. `quantity` continua sendo o peso em kg e deve ser exatamente igual ao produto dos dois campos. Exemplo: `{"productId":1,"quantity":"30","unitPrice":"50","boxCount":"2","boxWeightKg":"15"}`. `unitPrice` continua em reais por kg. A conversão deve caber nos limites da quantidade, com no máximo três casas decimais em kg, sem arredondamento. O servidor valida a igualdade e guarda os metadados na mesma transação. GET dos itens retorna `box_count` e `box_weight_kg`; itens antigos e registros diretos em kg têm ambos nulos. Omissão desses campos mantém a serialização anterior para reenvios idempotentes de operações em kg. Perdas e saldo inicial recebem apenas `quantity` já convertido para kg. Veja [regras de caixas](CAIXAS.md).
+
 O código do produto é interno e não aparece no formulário. POST `/products` aceita `code` omitido, nulo ou em branco: o servidor usa as três primeiras letras do nome, em maiúsculas e sem acentos, seguidas da sequência por prefixo (`CAM-001`, `CAM-002`…). Considera códigos existentes e não reutiliza números já reservados. Nomes curtos usam as letras disponíveis; sem letras, o prefixo é `PRO`. A sequência continua após 999. A geração e o cadastro são atômicos, inclusive em requisições simultâneas. A API mantém compatibilidade com códigos manuais; PUT sem código preserva o identificador atual, mesmo ao renomear o produto.
 
 - GET/POST `/customers` e `/suppliers`; PUT `/{id}` para editar/inativar.

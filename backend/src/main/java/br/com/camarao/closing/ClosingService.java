@@ -40,13 +40,13 @@ public class ClosingService {
     Mono<Long> capture(ClosePeriod period,String actor,LocalDateTime now) {
         return reports.report(period.from(),period.to()).flatMap(report -> records(period).flatMap(records -> {
             var snapshot=new LinkedHashMap<String,Object>();
-            snapshot.put("schemaVersion",4); snapshot.put("from",period.from()); snapshot.put("to",period.to());
+            snapshot.put("schemaVersion",5); snapshot.put("from",period.from()); snapshot.put("to",period.to());
             snapshot.put("timezone",Rules.ZONE.toString()); snapshot.put("closedAt",now.atOffset(ZoneOffset.UTC));
             snapshot.put("closedBy",actor); snapshot.put("note",period.note().trim());
             snapshot.put("report",report); snapshot.put("records",records);
             try {
                 String json=mapper.writeValueAsString(snapshot);
-                return sql.insert("INSERT INTO period_closures(date_from,date_to,timezone,closed_at,closed_by,note,schema_version,snapshot_sha256,snapshot_json) VALUES(:from,:to,:zone,:at,:actor,:note,4,:hash,:json)",
+                return sql.insert("INSERT INTO period_closures(date_from,date_to,timezone,closed_at,closed_by,note,schema_version,snapshot_sha256,snapshot_json) VALUES(:from,:to,:zone,:at,:actor,:note,5,:hash,:json)",
                     Map.of("from",period.from(),"to",period.to(),"zone",Rules.ZONE.toString(),"at",now,"actor",actor,"note",period.note().trim(),"hash",sha256(json),"json",json));
             } catch(Exception e) { return Mono.error(new IllegalStateException("Não foi possível preservar o fechamento.",e)); }
         }));

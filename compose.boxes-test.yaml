@@ -1,0 +1,6 @@
+# Use only alongside compose.test.yaml and a separate -p test project.
+services:
+  backend:
+    environment:
+      APP_ADMIN_USERNAME: boxes-qa
+      APP_ADMIN_PASSWORD: Boxes-QA-Only-2026!

@@ -19,7 +19,17 @@ import reactor.core.publisher.Mono;
 public class TradeService {
     public record Item(@Positive long productId,
         @NotNull @DecimalMin("0.001") @Digits(integer=10,fraction=3) BigDecimal quantity,
-        @NotNull @DecimalMin("0.000001") @Digits(integer=12,fraction=6) BigDecimal unitPrice) {
+        @NotNull @DecimalMin("0.000001") @Digits(integer=12,fraction=6) BigDecimal unitPrice,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @DecimalMin("0.001") @Digits(integer=10,fraction=3) BigDecimal boxCount,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @DecimalMin("0.001") @Digits(integer=6,fraction=3) BigDecimal boxWeightKg) {
+        public Item(long productId,BigDecimal quantity,BigDecimal unitPrice){this(productId,quantity,unitPrice,null,null);}
+        public void validateBoxes() {
+            Rules.require((boxCount==null)==(boxWeightKg==null),"Informe a quantidade de caixas e o peso de cada caixa juntos.");
+            if(boxCount!=null) Rules.require(boxCount.signum()>0 && boxWeightKg.signum()>0 && quantity.compareTo(boxCount.multiply(boxWeightKg))==0,
+                "Os quilos devem corresponder à quantidade de caixas multiplicada pelo peso de cada caixa, sem arredondamento.");
+        }
         public BigDecimal total() { return Rules.money(quantity.multiply(unitPrice)); }
     }
     public record Trade(@Positive Long partyId,@NotEmpty @Size(max=100) List<@NotNull @Valid Item> items,
@@ -38,6 +48,7 @@ public class TradeService {
     }
     @Transactional
     public Mono<Map<String,Long>> confirm(boolean sale,String key,Trade trade,String actor) {
+        trade.items().forEach(Item::validateBoxes);
         Rules.require(!sale || trade.partyId()!=null,"Informe o cliente da venda.");
         Rules.require(trade.items().stream().map(Item::productId).distinct().count()==trade.items().size(),"Agrupe o mesmo produto em um único item.");
         Rules.require(trade.items().stream().allMatch(i -> i.total().signum()>0),"Cada item precisa totalizar ao menos um centavo.");
@@ -61,18 +72,23 @@ public class TradeService {
                         if(sale) return stock.consume(item.productId(),item.quantity()).flatMap(consumption ->
                             sql.insert("INSERT INTO sale_items(sale_id,product_id,quantity,unit_price,total,cost_unit,cost_total) VALUES(:doc,:product,:quantity,:price,:total,:unitCost,:cost)",
                                 Map.of("doc",id,"product",item.productId(),"quantity",item.quantity(),"price",item.unitPrice(),"total",item.total(),"unitCost",consumption.unitCost(),"cost",consumption.totalCost()))
-                                .flatMap(itemId -> stock.movement(item.productId(),"SALE",item.quantity().negate(),consumption.totalCost().negate(),itemId,now,actor))
+                                .flatMap(itemId -> saveBoxes("sale_items",itemId,item).then(stock.movement(item.productId(),"SALE",item.quantity().negate(),consumption.totalCost().negate(),itemId,now,actor)))
                                 .thenReturn(consumption.totalCost()));
                         return stock.receive(item.productId(),item.quantity(),item.total())
                             .then(sql.insert("INSERT INTO purchase_items(purchase_id,product_id,quantity,unit_price,total) VALUES(:doc,:product,:quantity,:price,:total)",
                                 Map.of("doc",id,"product",item.productId(),"quantity",item.quantity(),"price",item.unitPrice(),"total",item.total())))
-                            .flatMap(itemId -> stock.movement(item.productId(),"PURCHASE",item.quantity(),item.total(),itemId,now,actor))
+                            .flatMap(itemId -> saveBoxes("purchase_items",itemId,item).then(stock.movement(item.productId(),"PURCHASE",item.quantity(),item.total(),itemId,now,actor)))
                             .thenReturn(BigDecimal.ZERO);
                     }).reduce(BigDecimal.ZERO,BigDecimal::add)
                     .flatMap(costTotal -> sale ? sql.update("UPDATE sales SET cost_total=:cost WHERE id=:id",Map.of("cost",costTotal,"id",id)).thenReturn(id) : Mono.just(id))
                     .flatMap(doc -> total.signum()==0 ? Mono.just(id) : finance.tradeTitle(sale,doc,trade.partyId(),total,trade.dueDate(),now))
                     .flatMap(title -> paidAmount.signum()==0 ? Mono.just(id) : finance.settle(List.of(new FinanceService.Allocation(title,paidAmount)),trade.method(),now,actor).thenReturn(id)));
         }));
+    }
+    private Mono<Void> saveBoxes(String table,long id,Item item) {
+        if(item.boxCount()==null)return Mono.empty();
+        return sql.update("UPDATE "+table+" SET box_count=:count,box_weight_kg=:weight WHERE id=:id",
+            Map.of("count",item.boxCount(),"weight",item.boxWeightKg(),"id",id)).then();
     }
     @Transactional(readOnly=true)
     public Mono<PageResult> list(boolean sale,PageQuery page) {

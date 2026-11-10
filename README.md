@@ -210,6 +210,10 @@ Em **Saldo inicial**, traga estoque com custo, dinheiro e contas antigas de suas
 
 O saldo inicial é opcional: use o **X** no lembrete da Visão geral ou na tela da implantação para continuar com os saldos em zero. A escolha fica salva e o menu permite configurar depois, enquanto ainda não houver lançamentos.
 
+Depois do primeiro lançamento operacional, **Saldo inicial** desaparece do menu e dos lembretes. Os dados já confirmados continuam preservados nos fechamentos.
+
+Compras, vendas, perdas e implantação aceitam **caixas**, com peso padrão de 15 kg ajustável por produto ou no lançamento. O estoque mostra caixas completas e quilos restantes. Preços, custos e relatórios continuam em kg; o histórico de compras e vendas preserva o peso usado em cada caixa. Veja [Quilos e caixas](docs/CAIXAS.md).
+
 ## Limites desta entrega
 
 O código do produto é gerado automaticamente, sem campo para preencher: Camarão recebe `CAM-001`, `CAM-002` e assim por diante, considerando os códigos já cadastrados. Renomear o produto preserva seu identificador.

@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 
 @Service
 public class CatalogService {
+    public record BoxWeight(@NotNull @DecimalMin("0.001") @Digits(integer=6,fraction=3) BigDecimal boxWeightKg) {}
     public record Partner(@NotBlank @Size(max=160) String name, @NotNull @Size(max=30) String phone,
         @NotNull @Size(max=30) String document, @NotNull @Size(max=1000) String notes, @NotNull Boolean active) {}
     public record Product(@Size(max=40) String code, @NotBlank @Size(max=160) String name,
@@ -67,6 +68,12 @@ public class CatalogService {
     }
     private Map<String,Object> productParams(Product p,String code) {
         return Map.of("code",code,"name",p.name().trim(),"price",p.suggestedPrice(),"minimum",p.minimumStock(),"active",p.active());
+    }
+    @Transactional
+    public Mono<Void> boxWeight(long id,BoxWeight body) {
+        return sql.one("SELECT id FROM products WHERE id=:id FOR UPDATE",Map.of("id",id))
+            .switchIfEmpty(Mono.error(Rules.missing("Produto não encontrado.")))
+            .flatMap(row->sql.update("UPDATE products SET box_weight_kg=:weight WHERE id=:id",Map.of("weight",body.boxWeightKg(),"id",id))).then();
     }
     public Mono<Void> requireActivePartner(boolean customer, long id) {
         return sql.one("SELECT * FROM "+table(customer)+" WHERE id=:id FOR SHARE",Map.of("id",id))

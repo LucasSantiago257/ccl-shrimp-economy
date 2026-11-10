@@ -22,4 +22,5 @@ public class CatalogController {
     @GetMapping("/products") public Mono<PageResult> products(@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="false") boolean activeOnly,@RequestParam(defaultValue="false") boolean inStockOnly) { return service.products(new PageQuery(page,size,q),activeOnly,inStockOnly); }
     @PostMapping("/products") public Mono<Map<String,Long>> product(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody CatalogService.Product p,Principal actor) { return service.createProduct(key,p,actor.getName()); }
     @PutMapping("/products/{id}") public Mono<Void> product(@PathVariable long id,@Valid @RequestBody CatalogService.Product p) { return service.editProduct(id,p); }
+    @PutMapping("/products/{id}/box-weight") public Mono<Void> boxWeight(@PathVariable long id,@Valid @RequestBody CatalogService.BoxWeight p) { return service.boxWeight(id,p); }
 }

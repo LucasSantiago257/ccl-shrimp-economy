@@ -1,0 +1,6 @@
+# Only use with compose.test.yaml and a separate test project.
+services:
+  backend:
+    environment:
+      APP_ENVIRONMENT: homologation
+      APP_ALLOW_RESET: 'true'

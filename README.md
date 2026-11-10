@@ -216,6 +216,10 @@ Compras, vendas, perdas e implantação aceitam **caixas**, com peso padrão de 
 
 ## Limites desta entrega
 
+Em homologação, o **Perfil** oferece **KILL — Resetar homologação** quando `APP_ENVIRONMENT=homologation` e `APP_ALLOW_RESET=true`. Exige digitar `APAGAR HOMOLOGACAO`. Apaga os cadastros e dados operacionais, inclusive snapshots e bloqueios de fechamentos; mantém usuário/senha, conta financeira e configurações de infraestrutura, e recria Camarão com estoque zero. O fechamento automático continua ativo para os próximos testes. Não habilite essas variáveis em produção. O reset não é executado ao iniciar ou atualizar o ambiente.
+
+O reset exige uma única instância de backend de homologação. Durante a execução, novas requisições são recusadas temporariamente e o fechamento automático aguarda o bloqueio operacional. A conexão administrativa usa TRUNCATE sem alterar as proteções de imutabilidade do banco. Essa limpeza é destrutiva e não transacional: se houver interrupção, repita o reset para concluir. Não usar esse mecanismo como correção de lançamentos reais.
+
 O código do produto é gerado automaticamente, sem campo para preencher: Camarão recebe `CAM-001`, `CAM-002` e assim por diante, considerando os códigos já cadastrados. Renomear o produto preserva seu identificador.
 
 A tela de entrada oferece **Lembrar meu login por 30 dias**, desmarcada por padrão. Em um dispositivo pessoal, permite voltar ao sistema sem digitar a senha, inclusive após reiniciar o navegador ou o backend. **Sair do sistema** revoga esse acesso no dispositivo; trocar ou redefinir a senha invalida todos os acessos antigos. Em produção, configure `APP_PUBLIC_URL` com HTTPS para que o cookie persistente seja Secure. A migração V8 guarda somente hashes dos tokens no MySQL.

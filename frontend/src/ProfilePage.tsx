@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import {ResetPanel} from './ResetPanel';
 import * as api from './api';
 import {Field,Panel,Status,useResource} from './ui';
 
@@ -24,7 +25,7 @@ export function ProfilePage({onChanged}:{onChanged:()=>void}) {
  <Field label="Senha atual"><input name="currentPassword" type="password" required autoComplete="current-password"/></Field>
  <PasswordFields/>{error&&<p role="alert" className="alert error">{error}</p>}
  <button className="button primary" disabled={busy}>{busy?'Salvando…':'Salvar nova senha'}</button>
- </form></div></Panel>}</>;
+ </form></div></Panel>}<ResetPanel/></>;
 }
 export function RecoveryPage({token,back}:{token?:string;back:()=>void}) {
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');

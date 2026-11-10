@@ -27,6 +27,8 @@ services:
       DB_USER: ${MYSQL_USER:-camarao}
       DB_PASSWORD: ${MYSQL_PASSWORD}
       APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-production}
+      APP_ALLOW_RESET: ${APP_ALLOW_RESET:-false}
       # Only loopback and the isolated Nginx proxy reach this backend. Nginx overwrites X-Real-IP.
       APP_TRUST_LOGIN_PROXY: ${APP_TRUST_LOGIN_PROXY:-true}
       FALLBACK_MAIL: ${FALLBACK_MAIL:-}

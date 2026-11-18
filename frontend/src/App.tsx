@@ -5,6 +5,7 @@ import { ClosedDayContext, Icon, date, today, useResource } from './ui';
 import type { PeriodStatus } from './types';
 import { PartnersPage, ProductsPage } from './CatalogPages';
 import { TradesPage, StockPage, ExpensesPage } from './OperationPages';
+import { ProcessingPage } from './ProcessingPage';
 import { FinancePage, ResultPage, Dashboard } from './FinancePages';
 import { AnalyticsPage } from './AnalyticsPage';
 import { ProfilePage, RecoveryPage } from './ProfilePage';
@@ -25,6 +26,7 @@ const pages = [
   { id: 'purchases', label: 'Compras', icon: 'purchase', group: 'OPERAÇÃO', description: 'Registre o camarão que chega à empresa.' },
   { id: 'sales', label: 'Vendas', icon: 'sale', description: 'Venda por quilo, à vista ou fiado.' },
   { id: 'stock', label: 'Estoque', icon: 'box', description: 'Acompanhe cada entrada, saída e perda.' },
+  { id: 'processing', label: 'Beneficiamento', icon: 'box', description: 'Transforme matéria-prima em produtos para venda e acompanhe o rendimento.' },
   { id: 'analytics', label: 'Dashboards', icon: 'report', group: 'RESULTADOS', description: 'Acompanhe vendas, caixa e estoque ao longo do tempo.' },
   { id: 'finance', label: 'Financeiro', icon: 'wallet', description: 'Recebimentos e pagamentos no seu ritmo.' },
   { id: 'expenses', label: 'Despesas', icon: 'wallet', description: 'Registre os gastos da operação.' },
@@ -112,6 +114,7 @@ function Shell({ username, signOut }: { username: string; signOut: () => void })
       {page === 'products' && <ProductsPage revision={revision} saved={saved} />}
       {(page === 'purchases' || page === 'sales') && <TradesPage key={page} sale={page === 'sales'} revision={revision} saved={saved} />}
       {page === 'stock' && <StockPage revision={revision} saved={saved} />}
+      {page === 'processing' && <ProcessingPage revision={revision} saved={saved} />}
       {page === 'finance' && <FinancePage revision={revision} saved={saved} />}
       {page === 'expenses' && <ExpensesPage revision={revision} saved={saved} />}
       {page === 'result' && <ResultPage revision={revision + clockRevision} saved={saved} />}

@@ -53,6 +53,7 @@ public class ClosingService {
     }
     private Mono<Map<String,Object>> records(ClosePeriod period) {
         var queries=new LinkedHashMap<String,String>();
+        queries.put("processing_batches","SELECT b.*,s.name AS source_name,t.name AS target_name FROM processing_batches b JOIN products s ON s.id=b.source_product_id JOIN products t ON t.id=b.target_product_id WHERE b.occurred_at>=:from AND b.occurred_at<:to ORDER BY b.id");
         queries.put("opening_balances","SELECT * FROM opening_balances WHERE occurred_at>=:from AND occurred_at<:to ORDER BY id");
         queries.put("opening_stock","SELECT s.* FROM opening_stock s JOIN opening_balances b ON b.id=s.opening_id WHERE b.occurred_at>=:from AND b.occurred_at<:to ORDER BY s.id");
         queries.put("opening_reversals","SELECT * FROM opening_reversals WHERE occurred_at>=:from AND occurred_at<:to ORDER BY opening_id");

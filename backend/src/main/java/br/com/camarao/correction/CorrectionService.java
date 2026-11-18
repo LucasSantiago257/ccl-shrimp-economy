@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 
 @Service
 public class CorrectionService {
-    public enum Kind { SALE, PURCHASE, EXPENSE, PAYMENT, LOSS }
+    public enum Kind { SALE, PURCHASE, EXPENSE, PAYMENT, LOSS, PROCESS }
     public record Request(@NotBlank @Size(min=5,max=500) String reason) {}
     public record Replacement(@Positive long sourceId) {}
     private final Sql sql;
@@ -33,6 +33,7 @@ public class CorrectionService {
             case EXPENSE -> "expenses";
             case PAYMENT -> "settlements";
             case LOSS -> "stock_movements";
+            case PROCESS -> "processing_batches";
         };
     }
 
@@ -59,6 +60,7 @@ public class CorrectionService {
             case SALE -> "m.sale_item_id IN (SELECT id FROM sale_items WHERE sale_id=:id)";
             case PURCHASE -> "m.purchase_item_id IN (SELECT id FROM purchase_items WHERE purchase_id=:id)";
             case LOSS -> "m.id=:id";
+            case PROCESS -> "m.processing_id=:id";
             default -> "FALSE";
         };
         Map<String,Object> params=kind==Kind.EXPENSE || kind==Kind.PAYMENT ? Map.of() : Map.of("id",id);
@@ -75,13 +77,13 @@ public class CorrectionService {
     }
 
     private Mono<List<Map<String,Object>>> payments(Kind kind,long id) {
-        if(kind==Kind.PAYMENT || kind==Kind.LOSS) return Mono.just(List.of());
+        if(kind==Kind.PAYMENT || kind==Kind.LOSS || kind==Kind.PROCESS) return Mono.just(List.of());
         return sql.all("SELECT s.id,s.direction,SUM(a.amount) AS amount FROM settlements s JOIN allocation_events a ON a.settlement_id=s.id JOIN financial_titles t ON t.id=a.title_id WHERE t."+titleColumn(kind)+"=:id GROUP BY s.id HAVING SUM(a.amount)>0 ORDER BY s.id",Map.of("id",id)).collectList();
     }
 
     private Mono<List<Map<String,Object>>> dependencies(List<Map<String,Object>> movements) {
         return Flux.fromIterable(movements).concatMap(m ->
-            sql.all("SELECT n.id,n.type,n.product_id,COALESCE(s.sale_id,p.purchase_id,n.id) AS source_id FROM stock_movements n LEFT JOIN sale_items s ON s.id=n.sale_item_id LEFT JOIN purchase_items p ON p.id=n.purchase_item_id LEFT JOIN correction_stock r ON r.movement_id=n.id WHERE n.product_id=:product AND n.id>:id AND r.id IS NULL ORDER BY n.id DESC",
+            sql.all("SELECT n.id,n.type,n.product_id,COALESCE(s.sale_id,p.purchase_id,n.processing_id,n.id) AS source_id FROM stock_movements n LEFT JOIN sale_items s ON s.id=n.sale_item_id LEFT JOIN purchase_items p ON p.id=n.purchase_item_id LEFT JOIN correction_stock r ON r.movement_id=n.id WHERE n.product_id=:product AND n.id>:id AND r.id IS NULL ORDER BY n.id DESC",
                 Map.of("product",m.get("product_id"),"id",m.get("id")))).collectList();
     }
 
@@ -125,7 +127,7 @@ public class CorrectionService {
     }
 
     private Mono<Void> reversePayments(long correctionId,Kind kind,long id) {
-        if(kind==Kind.PAYMENT || kind==Kind.LOSS) return Mono.empty();
+        if(kind==Kind.PAYMENT || kind==Kind.LOSS || kind==Kind.PROCESS) return Mono.empty();
         return sql.all("SELECT a.settlement_id,a.title_id,SUM(a.amount) AS amount FROM allocation_events a "
             +"JOIN financial_titles t ON t.id=a.title_id WHERE t."+titleColumn(kind)+"=:id "
             +"GROUP BY a.settlement_id,a.title_id HAVING SUM(a.amount)>0",

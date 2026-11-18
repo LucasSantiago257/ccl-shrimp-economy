@@ -5,6 +5,7 @@ import br.com.camarao.shared.*;
 import br.com.camarao.trade.TradeService;
 import br.com.camarao.finance.FinanceService;
 import br.com.camarao.stock.StockOperations;
+import br.com.camarao.stock.ProcessingService;
 import com.fasterxml.jackson.databind.*;
 import jakarta.validation.Validator;
 import java.util.Map;
@@ -21,11 +22,12 @@ public class ReplacementCreationService {
     private final TradeService trades;
     private final FinanceService finance;
     private final StockOperations stock;
+    private final ProcessingService processing;
     private final ObjectMapper mapper;
     private final Validator validator;
 
     public ReplacementCreationService(Sql sql,PeriodGuard periods,Idempotency idempotency,CorrectionService corrections,
-        TradeService trades,FinanceService finance,StockOperations stock,ObjectMapper mapper,Validator validator) {
+        TradeService trades,FinanceService finance,StockOperations stock,ProcessingService processing,ObjectMapper mapper,Validator validator) {
         this.sql=sql;
         this.periods=periods;
         this.idempotency=idempotency;
@@ -33,6 +35,7 @@ public class ReplacementCreationService {
         this.trades=trades;
         this.finance=finance;
         this.stock=stock;
+        this.processing=processing;
         this.mapper=mapper;
         this.validator=validator;
     }
@@ -60,6 +63,7 @@ public class ReplacementCreationService {
             case EXPENSE -> finance.expense(key,decode(body,FinanceService.Expense.class),actor);
             case PAYMENT -> finance.payment(key,decode(body,FinanceService.Payment.class),actor);
             case LOSS -> stock.loss(key,decode(body,StockOperations.Loss.class),actor);
+            case PROCESS -> processing.create(key,decode(body,ProcessingService.Request.class),actor);
         };
     }
 

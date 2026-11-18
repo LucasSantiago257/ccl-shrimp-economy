@@ -5,11 +5,11 @@ import type { Num } from './types';
 import type { ReplacementRequest } from './postingFlow';
 import './corrections.css';
 
-export type CorrectionKind = 'SALE' | 'PURCHASE' | 'EXPENSE' | 'PAYMENT' | 'LOSS';
+export type CorrectionKind = 'SALE' | 'PURCHASE' | 'EXPENSE' | 'PAYMENT' | 'LOSS' | 'PROCESS';
 export type CorrectionTarget = { kind: CorrectionKind; id: number };
 export const CorrectionContext = createContext<(target: CorrectionTarget) => void>(() => {});
 const names: Record<CorrectionKind,string> = {
-  SALE:'Venda', PURCHASE:'Compra', EXPENSE:'Despesa', PAYMENT:'Registro financeiro', LOSS:'Perda',
+  SALE:'Venda', PURCHASE:'Compra', EXPENSE:'Despesa', PAYMENT:'Registro financeiro', LOSS:'Perda', PROCESS:'Beneficiamento',
 };
 interface Correction {
   id:number; kind:CorrectionKind; source_id:number; reason:string;
@@ -20,7 +20,7 @@ interface Preview {
   correction:Partial<Correction>;
   stock:{ id:number; product_name:string; quantity_delta:Num }[];
   payments:{ id:number; amount:Num; direction:string }[];
-  dependencies:{ id:number; type:'SALE'|'PURCHASE'|'LOSS'; source_id:number }[];
+  dependencies:{ id:number; type:'SALE'|'PURCHASE'|'LOSS'|'PROCESS'; source_id:number }[];
   allocations:{ title_id:number; amount:Num; sale_id?:number; purchase_id?:number; expense_id?:number }[];
 }
 const targetKey=(target:CorrectionTarget)=>target.kind+':'+target.id;

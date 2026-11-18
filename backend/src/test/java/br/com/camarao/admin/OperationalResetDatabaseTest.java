@@ -21,7 +21,7 @@ class OperationalResetDatabaseTest {
             sql.execute("INSERT INTO suppliers(name,phone,document,notes) VALUES('Fornecedor','321','654','Ativo')");
             sql.execute("INSERT INTO expenses(description,category,total,occurred_at,created_by) VALUES('Gelo','Outros',10,NOW(),'teste')");
             sql.execute("INSERT INTO fixed_expense_rules(description,category,amount,monthly_day,next_due,created_by) VALUES('Galpão','Aluguel',100,1,CURRENT_DATE,'teste')");
-            var reset=new HomologationReset("homologation",true,host+schema,user,password);
+            var reset=new HomologationReset("homologation",host+schema,user,password);
             for(int attempt=0;attempt<2;attempt++) {
                 reset.clear();
                 assertEquals(1,count(sql,"customers WHERE id=1 AND name='Cliente' AND phone='123' AND document='456' AND notes='Antigo' AND active=false"));

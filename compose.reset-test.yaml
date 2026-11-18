@@ -3,4 +3,4 @@ services:
   backend:
     environment:
       APP_ENVIRONMENT: homologation
-      APP_ALLOW_RESET: 'true'
+      APP_ALLOW_RESET: 'false'

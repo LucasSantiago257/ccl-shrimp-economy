@@ -184,6 +184,6 @@ Para repetir, escolha um projeto novo de teste: `docker compose -p camarao-boxes
 
 ## Reset de homologação — 10/11/2026
 
-`tests/reset.browser.mjs` foi executado após os nove cenários de caixas em MySQL isolado. Aprovou confirmação digitada, rejeição de confirmação incorreta sem apagar dados, autenticação, CSRF, limpeza de cadastros e lançamentos, remoção dos snapshots/bloqueios, estoque zero, retorno do saldo inicial, preservação do usuário, repetição e interface de 390 px. O teste Java exige simultaneamente ambiente homologation e permissão explícita; production nunca habilita o reset, mesmo com APP_ALLOW_RESET=true.
+`tests/reset.browser.mjs` foi executado após os nove cenários de caixas em MySQL isolado. Aprovou confirmação digitada, rejeição de confirmação incorreta sem apagar dados, autenticação, CSRF, limpeza de cadastros e lançamentos, remoção dos snapshots/bloqueios, estoque zero, retorno do saldo inicial, preservação do usuário, repetição e interface de 390 px. A limpeza fica disponível em homologação independentemente de APP_ALLOW_RESET. O teste Java verifica a restrição por ambiente.
 
 Repetir em projeto novo com os overrides compose.test.yaml, compose.profile-test.yaml, compose.boxes-test.yaml e compose.reset-test.yaml, executando primeiro `node tests/boxes.browser.mjs` e depois `node tests/reset.browser.mjs`. A limpeza real foi exercitada somente nesse banco isolado. O ambiente local recebeu o botão habilitado, sem execução automática do reset. Consulte as restrições de instância única e de repetição após interrupção no README.

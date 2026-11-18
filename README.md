@@ -216,7 +216,7 @@ Compras, vendas, perdas e implantação aceitam **caixas**, com peso padrão de 
 
 ## Limites desta entrega
 
-Em homologação, o **Perfil** oferece **Limpar dados operacionais** quando `APP_ENVIRONMENT=homologation` e `APP_ALLOW_RESET=true`. Exige digitar `LIMPAR OPERACAO`. Preserva os cadastros de clientes e fornecedores. Apaga os demais dados operacionais e agendamentos mensais, inclusive snapshots e bloqueios de fechamentos; mantém usuário/senha, conta financeira e configurações de infraestrutura, e recria Camarão com estoque zero. O fechamento automático continua ativo para os próximos testes. Não habilite essas variáveis em produção. O reset não é executado ao iniciar ou atualizar o ambiente.
+Em homologação, o **Perfil** oferece **Limpar dados operacionais** quando `APP_ENVIRONMENT=homologation`. Exige digitar `LIMPAR OPERACAO`. Preserva os cadastros de clientes e fornecedores. Apaga os demais dados operacionais e agendamentos mensais, inclusive snapshots e bloqueios de fechamentos; mantém usuário/senha, conta financeira e configurações de infraestrutura, e recria Camarão com estoque zero. O fechamento automático continua ativo para os próximos testes. O reset não é executado ao iniciar ou atualizar o ambiente.
 
 O reset exige uma única instância de backend de homologação. Durante a execução, novas requisições são recusadas temporariamente e o fechamento automático aguarda o bloqueio operacional. A conexão administrativa usa TRUNCATE sem alterar as proteções de imutabilidade do banco. Essa limpeza é destrutiva e não transacional: se houver interrupção, repita o reset para concluir. Não usar esse mecanismo como correção de lançamentos reais.
 

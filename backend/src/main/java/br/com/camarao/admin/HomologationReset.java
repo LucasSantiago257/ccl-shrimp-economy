@@ -23,12 +23,12 @@ public class HomologationReset implements WebFilter {
     final String url,user,password;
     public HomologationReset(@Value("${APP_ENVIRONMENT:production}") String environment,
         @Value("${spring.flyway.url}") String url,@Value("${spring.flyway.user}") String user,@Value("${spring.flyway.password}") String password){
-        enabled=environment.equals("homologation");this.url=url;this.user=user;this.password=password;
+        enabled=environment.equals("homologation") || environment.equals("production");this.url=url;this.user=user;this.password=password;
     }
     @Override public Mono<Void> filter(ServerWebExchange exchange,WebFilterChain chain){
         return Mono.defer(()->{
             active.incrementAndGet();
-            if(resetting.get()){active.decrementAndGet();return Mono.error(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Homologação sendo reiniciada. Aguarde."));}
+            if(resetting.get()){active.decrementAndGet();return Mono.error(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Operação sendo reiniciada. Aguarde."));}
             return chain.filter(exchange).doFinally(signal->active.decrementAndGet());
         });
     }

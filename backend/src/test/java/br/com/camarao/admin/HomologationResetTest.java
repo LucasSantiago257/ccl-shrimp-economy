@@ -2,8 +2,8 @@ package br.com.camarao.admin;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class HomologationResetTest {
- @Test void enabledOnlyInHomologation(){
-  assertFalse(new HomologationReset("production","","","").enabled);
+ @Test void temporarilyEnabledInProductionAndHomologation(){
+  assertTrue(new HomologationReset("production","","","").enabled);
   assertTrue(new HomologationReset("homologation","","","").enabled);
  }
 }

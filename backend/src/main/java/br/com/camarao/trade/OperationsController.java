@@ -41,6 +41,7 @@ public class OperationsController {
     @PostMapping("/expenses") public Mono<Map<String,Long>> expense(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody FinanceService.Expense expense,Principal actor) {
         return finance.expense(key,expense,actor.getName());
     }
+    @GetMapping("/stock/lots") public Flux<Map<String,Object>> lots(@RequestParam long productId,@RequestParam(defaultValue="false") boolean history){return stock.lots(productId,history);}
     @GetMapping("/stock/movements") public Mono<PageResult> movements(@RequestParam(defaultValue="0") long productId,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return stock.movements(productId,new PageQuery(page,size,q)); }
     @PostMapping("/stock/losses") public Mono<Map<String,Long>> loss(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody StockOperations.Loss loss,Principal actor) {
         return stock.loss(key,loss,actor.getName());

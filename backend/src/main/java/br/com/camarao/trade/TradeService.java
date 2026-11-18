@@ -23,7 +23,8 @@ public class TradeService {
         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
         @DecimalMin("0.001") @Digits(integer=10,fraction=3) BigDecimal boxCount,
         @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-        @DecimalMin("0.001") @Digits(integer=6,fraction=3) BigDecimal boxWeightKg) {
+        @DecimalMin("0.001") @Digits(integer=6,fraction=3) BigDecimal boxWeightKg, @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) @Positive Long lotId, @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) @DecimalMin("0.000001") @Digits(integer=12,fraction=6) BigDecimal suggestedPrice) {
+        public Item(long p,BigDecimal q,BigDecimal u,BigDecimal b,BigDecimal w){this(p,q,u,b,w,null,null);}
         public Item(long productId,BigDecimal quantity,BigDecimal unitPrice){this(productId,quantity,unitPrice,null,null);}
         public void validateBoxes() {
             Rules.require((boxCount==null)==(boxWeightKg==null),"Informe a quantidade de caixas e o peso de cada caixa juntos.");
@@ -50,7 +51,12 @@ public class TradeService {
     public Mono<Map<String,Long>> confirm(boolean sale,String key,Trade trade,String actor) {
         trade.items().forEach(Item::validateBoxes);
         Rules.require(!sale || trade.partyId()!=null,"Informe o cliente da venda.");
-        Rules.require(trade.items().stream().map(Item::productId).distinct().count()==trade.items().size(),"Agrupe o mesmo produto em um único item.");
+        if (sale) {
+            var byProduct=trade.items().stream().collect(java.util.stream.Collectors.groupingBy(Item::productId));
+            Rules.require(byProduct.values().stream().noneMatch(group -> group.size()>1 && group.stream().anyMatch(i -> i.lotId()==null)),
+                "Selecione o lote em cada linha do mesmo produto.");
+        }
+        Rules.require(trade.items().stream().map(i -> i.productId()+":"+(sale ? String.valueOf(i.lotId()) : "")).distinct().count()==trade.items().size(),sale ? "Use uma linha por lote do produto." : "Agrupe o mesmo produto em um único item.");
         Rules.require(trade.items().stream().allMatch(i -> i.total().signum()>0),"Cada item precisa totalizar ao menos um centavo.");
         BigDecimal gross=trade.items().stream().map(Item::total).reduce(BigDecimal.ZERO,BigDecimal::add);
         var amounts=SaleAmounts.calculate(gross,trade.discountAmount());
@@ -69,15 +75,15 @@ public class TradeService {
             return partner.then(sql.insert("INSERT INTO "+table+"("+party+",total,occurred_at,created_by"+cost+") VALUES(:party,:total,:at,:actor"+costValue+")",params))
                 .flatMap(id -> Flux.fromIterable(trade.items().stream().sorted(Comparator.comparingLong(Item::productId)).toList())
                     .concatMap(item -> {
-                        if(sale) return stock.consume(item.productId(),item.quantity()).flatMap(consumption ->
+                        if(sale) return stock.consume(item.productId(),item.quantity(),item.lotId()).flatMap(consumption ->
                             sql.insert("INSERT INTO sale_items(sale_id,product_id,quantity,unit_price,total,cost_unit,cost_total) VALUES(:doc,:product,:quantity,:price,:total,:unitCost,:cost)",
                                 Map.of("doc",id,"product",item.productId(),"quantity",item.quantity(),"price",item.unitPrice(),"total",item.total(),"unitCost",consumption.unitCost(),"cost",consumption.totalCost()))
-                                .flatMap(itemId -> saveBoxes("sale_items",itemId,item).then(stock.movement(item.productId(),"SALE",item.quantity().negate(),consumption.totalCost().negate(),itemId,now,actor)))
+                                .flatMap(itemId -> saveBoxes("sale_items",itemId,item).then(stock.movement(item.productId(),"SALE",item.quantity().negate(),consumption.totalCost().negate(),itemId,consumption.lotId(),now,actor)))
                                 .thenReturn(consumption.totalCost()));
                         return stock.receive(item.productId(),item.quantity(),item.total())
                             .then(sql.insert("INSERT INTO purchase_items(purchase_id,product_id,quantity,unit_price,total) VALUES(:doc,:product,:quantity,:price,:total)",
                                 Map.of("doc",id,"product",item.productId(),"quantity",item.quantity(),"price",item.unitPrice(),"total",item.total())))
-                            .flatMap(itemId -> saveBoxes("purchase_items",itemId,item).then(stock.movement(item.productId(),"PURCHASE",item.quantity(),item.total(),itemId,now,actor)))
+                            .flatMap(itemId -> saveBoxes("purchase_items",itemId,item).then(stock.createLot(item.productId(),"PURCHASE",id,now,item.suggestedPrice()).flatMap(lot -> stock.movement(item.productId(),"PURCHASE",item.quantity(),item.total(),itemId,lot,now,actor))))
                             .thenReturn(BigDecimal.ZERO);
                     }).reduce(BigDecimal.ZERO,BigDecimal::add)
                     .flatMap(costTotal -> sale ? sql.update("UPDATE sales SET cost_total=:cost WHERE id=:id",Map.of("cost",costTotal,"id",id)).thenReturn(id) : Mono.just(id))
@@ -122,6 +128,6 @@ public class TradeService {
         });
     }
     public Flux<Map<String,Object>> items(boolean sale,long id) {
-        return sql.all("SELECT i.*,p.name AS product_name FROM "+(sale?"sale_items":"purchase_items")+" i JOIN products p ON p.id=i.product_id WHERE i."+(sale?"sale_id":"purchase_id")+"=:id ORDER BY i.id",Map.of("id",id));
+        return sql.all("SELECT i.*,p.name AS product_name,l.origin AS lot_origin,l.origin_id AS delivery_id FROM "+(sale?"sale_items":"purchase_items")+" i JOIN products p ON p.id=i.product_id LEFT JOIN stock_movements m ON m."+(sale?"sale_item_id":"purchase_item_id")+"=i.id LEFT JOIN stock_lots l ON l.id=m.lot_id WHERE i."+(sale?"sale_id":"purchase_id")+"=:id ORDER BY i.id",Map.of("id",id));
     }
 }

@@ -1,3 +1,4 @@
+import { LotSelect } from './Lots';
 import { useContext, useState } from 'react';
 import { CorrectionAction } from './Corrections';
 import { Pager, RemoteSelect, SearchBox, usePagedResource } from './Pagination';
@@ -11,6 +12,8 @@ const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFracti
 interface Batch {
   id: number;
   source_name: string;
+  lot_origin?:string;
+  lot_document?:number;
   target_name: string;
   input_kg: Num;
   output_kg: Num;
@@ -35,7 +38,7 @@ export function ProcessingPage({ revision, saved }: { revision: number; saved: (
         <thead><tr><th>Registro</th><th>Origem consumida</th><th>Produto obtido</th><th>Rendimento</th><th>Custo transferido</th><th>Situação</th><th>Ações</th></tr></thead>
         <tbody>{list.items.map(batch => <tr key={batch.id}>
           <td><strong>#{batch.id}</strong><small>{date(batch.occurred_at)}</small></td>
-          <td>{batch.source_name}<small>{kg(batch.input_kg)}</small></td>
+          <td>{batch.source_name}{batch.lot_origin && <small>{batch.lot_origin==='PURCHASE'?'Entrega #'+batch.lot_document:batch.lot_origin==='PROCESS'?'Beneficiamento #'+batch.lot_document:batch.lot_origin==='OPENING'?'Saldo inicial':'Saldo anterior'}</small>}<small>{kg(batch.input_kg)}</small></td>
           <td>{batch.target_name}<small>{kg(batch.output_kg)}</small></td>
           <td>{percent.format(Number(batch.output_kg) / Number(batch.input_kg))}<small>{kg(Number(batch.input_kg) - Number(batch.output_kg))} de diferença</small></td>
           <td>{money(batch.transferred_cost)}</td>
@@ -52,6 +55,7 @@ export function ProcessingPage({ revision, saved }: { revision: number; saved: (
 }
 
 function ProcessingForm({ revision, done }: { revision: number; done: () => void }) {
+  const [lot,setLot]=useState("");
   const [source, setSource] = useState<Product>();
   const [target, setTarget] = useState<Product>();
   const [input, setInput] = useState('');
@@ -59,12 +63,13 @@ function ProcessingForm({ revision, done }: { revision: number; done: () => void
   const consumed = Number(input);
   const obtained = Number(output);
   const distinct = !!source && !!target && source.id !== target.id;
-  const valid = distinct && consumed > 0 && consumed <= Number(source?.quantity) && obtained > 0 && obtained <= consumed;
+  const valid = !!lot && distinct && consumed > 0 && consumed <= Number(source?.quantity) && obtained > 0 && obtained <= consumed;
   return <MutationForm path={path} button="Confirmar beneficiamento" valid={valid} done={done}
-    build={() => ({ sourceProductId: source?.id, targetProductId: target?.id, inputKg: input, outputKg: output })}>
+    build={() => ({ sourceProductId: source?.id, lotId:Number(lot), targetProductId: target?.id, inputKg: input, outputKg: output })}>
     <RemoteSelect<Product> path="/api/v1/products?activeOnly=true&inStockOnly=true" label="Produto de origem"
-      revision={revision} value={source ? String(source.id) : ''} onSelect={setSource}
+      revision={revision} value={source ? String(source.id) : ''} onSelect={p=>{setSource(p);setLot("");}}
       optionLabel={product => product.name + ' · ' + kg(product.quantity)} />
+    {source && <LotSelect product={String(source.id)} revision={revision} value={lot} onSelect={setLot}/>}
     <RemoteSelect<Product> path="/api/v1/products?activeOnly=true" label="Produto resultante"
       revision={revision} value={target ? String(target.id) : ''} onSelect={setTarget} />
     <p className="subtle">Cadastre o produto resultante em Produtos antes do primeiro beneficiamento. Exemplo: Camarão sem cabeça.</p>

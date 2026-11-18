@@ -39,7 +39,7 @@ public class HomologationReset implements WebFilter {
         // This is deliberately a repeatable destructive reset, not a transactional financial correction.
         try(Connection connection=DriverManager.getConnection(url,user,password);Statement statement=connection.createStatement()){
             statement.execute("SET FOREIGN_KEY_CHECKS=0");
-            for(String table:new String[]{"allocation_reversals","correction_replacements","correction_stock","corrections","settlement_allocations","settlements","financial_titles","stock_movements","processing_batches","sale_items","purchase_items","sales","purchases","fixed_expense_occurrences","fixed_expense_rules","expenses","opening_reversals","opening_stock","opening_balances","period_closures","stock_balances","products","product_code_sequences"}) statement.execute("TRUNCATE TABLE `"+table+"`");
+            for(String table:new String[]{"allocation_reversals","correction_replacements","correction_stock","corrections","settlement_allocations","settlements","financial_titles","stock_movements","stock_lots","processing_batches","sale_items","purchase_items","sales","purchases","fixed_expense_occurrences","fixed_expense_rules","expenses","opening_reversals","opening_stock","opening_balances","period_closures","stock_balances","products","product_code_sequences"}) statement.execute("TRUNCATE TABLE `"+table+"`");
             statement.execute("DELETE FROM operation_requests WHERE operation_type NOT IN ('CREATE_CUSTOMER','CREATE_SUPPLIER')");
             statement.execute("SET FOREIGN_KEY_CHECKS=1");
             statement.execute("INSERT INTO products(id,code,name,suggested_price,minimum_stock) VALUES(1,'CAM-001','Camarão',50,5)");

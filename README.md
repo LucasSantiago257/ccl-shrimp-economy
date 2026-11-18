@@ -231,7 +231,8 @@ As correções da auditoria adicionam limite de 20 tentativas de login por orige
 - Datas operacionais são as do registro, em UTC, com relatório por dia no fuso America/Bahia; sem lançamentos retroativos nesta versão.
 - Sem rascunhos, pedidos futuros, reserva, devoluções reais, juros, crédito antecipado, emissão fiscal ou integração de pagamento.
 - Sem reabertura de períodos fechados; correções futuras precisarão de ajustes auditados que preservem os snapshots existentes.
-- Sem lotes/validade e sem frete de aquisição rateado. O custo considera os totais arredondados dos itens comprados. Registre despesas operacionais separadamente, evitando contar um mesmo gasto duas vezes.
+- Cada compra identifica uma entrega, com saldo, custo e preço sugerido por produto. Em uma venda, use uma linha por lote. Beneficiamentos e perdas também baixam o lote escolhido. Em Estoque, **Ver lotes** permite consultar entregas disponíveis ou esgotadas. A atualização identifica o estoque existente como **Saldo anterior**.
+- Sem controle de validade e sem frete de aquisição rateado. O custo considera os totais arredondados dos itens comprados. Registre despesas operacionais separadamente, evitando contar um mesmo gasto duas vezes.
 - Ambiente de desenvolvimento local. Acesso por celular físico em rede e publicação exigem configuração de rede, HTTPS, cookies Secure e revisão operacional; não basta expor o MySQL.
 
 Veja [Saldo inicial e exportação compacta](docs/SALDOS_E_EXPORTACAO.md), [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e [Validação](docs/VALIDACAO.md).

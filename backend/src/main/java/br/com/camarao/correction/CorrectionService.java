@@ -83,8 +83,8 @@ public class CorrectionService {
 
     private Mono<List<Map<String,Object>>> dependencies(List<Map<String,Object>> movements) {
         return Flux.fromIterable(movements).concatMap(m ->
-            sql.all("SELECT n.id,n.type,n.product_id,COALESCE(s.sale_id,p.purchase_id,n.processing_id,n.id) AS source_id FROM stock_movements n LEFT JOIN sale_items s ON s.id=n.sale_item_id LEFT JOIN purchase_items p ON p.id=n.purchase_item_id LEFT JOIN correction_stock r ON r.movement_id=n.id WHERE n.product_id=:product AND n.id>:id AND r.id IS NULL ORDER BY n.id DESC",
-                Map.of("product",m.get("product_id"),"id",m.get("id")))).collectList();
+            sql.all("SELECT n.id,n.type,n.product_id,COALESCE(s.sale_id,p.purchase_id,n.processing_id,n.id) AS source_id FROM stock_movements n LEFT JOIN sale_items s ON s.id=n.sale_item_id LEFT JOIN purchase_items p ON p.id=n.purchase_item_id LEFT JOIN correction_stock r ON r.movement_id=n.id WHERE n.product_id=:product AND (:lot=0 OR n.lot_id=:lot) AND n.id>:id AND r.id IS NULL ORDER BY n.id DESC",
+                Map.of("product",m.get("product_id"),"lot",m.get("lot_id")==null?0:m.get("lot_id"),"id",m.get("id")))).collectList();
     }
 
     @Transactional(readOnly=true)

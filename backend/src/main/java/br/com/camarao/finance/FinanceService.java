@@ -68,13 +68,14 @@ public class FinanceService {
     @Transactional
     public Mono<Map<String,Long>> expense(String key,Expense expense,String actor) {
         Rules.require(expense.paidAmount().compareTo(expense.amount())<=0,"O pagamento excede o total da despesa.");
-        return idempotency.run(key,"EXPENSE",expense,actor,() -> periods.requireOpenDay().flatMap(now -> {
+        return idempotency.run(key,"EXPENSE",expense,actor,() -> periods.requireOpenDay().flatMap(now -> postExpense(expense, actor, now)));
+    }
+    Mono<Long> postExpense(Expense expense, String actor, LocalDateTime now) {
             return sql.insert("INSERT INTO expenses(description,category,total,occurred_at,created_by) VALUES(:description,:category,:total,:at,:actor)",
                 Map.of("description",expense.description().trim(),"category",expense.category().trim(),"total",expense.amount(),"at",now,"actor",actor))
                 .flatMap(id -> sql.insert("INSERT INTO financial_titles(nature,expense_id,amount,issued_at,due_date) VALUES('PAYABLE',:expense,:amount,:at,:due)",
                     Map.of("expense",id,"amount",expense.amount(),"at",now,"due",expense.dueDate()))
                     .flatMap(title -> expense.paidAmount().signum()==0 ? Mono.just(id) : settle(List.of(new Allocation(title,expense.paidAmount())),expense.method(),now,actor).thenReturn(id)));
-        }));
     }
     public Mono<PageResult> titles(String nature,long customerId,boolean openOnly,boolean purchasesOnly,PageQuery page) {
         Rules.require(nature.equals("RECEIVABLE")||nature.equals("PAYABLE"),"Natureza financeira inválida.");
@@ -90,7 +91,9 @@ public class FinanceService {
             +"WHERE (:customer=0 OR t.customer_id=:customer) AND (CAST(s.id AS CHAR) LIKE :q ESCAPE '!' OR EXISTS(SELECT 1 FROM settlement_allocations ax JOIN financial_titles tx ON tx.id=ax.title_id LEFT JOIN customers c ON c.id=tx.customer_id LEFT JOIN suppliers p ON p.id=tx.supplier_id LEFT JOIN expenses e ON e.id=tx.expense_id WHERE ax.settlement_id=s.id AND (COALESCE(c.name,p.name,e.description,NULLIF(tx.opening_description,''),'Fornecedor não informado') LIKE :q ESCAPE '!' OR CAST(tx.id AS CHAR) LIKE :q ESCAPE '!'))) GROUP BY s.id",
             "s.id DESC",Map.of("customer",customerId,"q",page.like()),page);
     }
-    public Mono<PageResult> expenses(PageQuery page) {
-        return sql.page("SELECT e.*,c.id AS correction_id FROM expenses e LEFT JOIN corrections c ON c.kind='EXPENSE' AND c.source_id=e.id WHERE description LIKE :q ESCAPE '!' OR category LIKE :q ESCAPE '!' OR CAST(e.id AS CHAR) LIKE :q ESCAPE '!'","e.id DESC",Map.of("q",page.like()),page,"total");
+    public Mono<PageResult> expenses(PageQuery page, String kind) {
+        Rules.require(Set.of("ALL","FIXED","VARIABLE").contains(kind),"Tipo de despesa inválido.");
+        String filter=switch(kind) { case "FIXED" -> "fixed_rule_id IS NOT NULL AND "; case "VARIABLE" -> "fixed_rule_id IS NULL AND "; default -> ""; };
+        return sql.page("SELECT e.*,c.id AS correction_id FROM classified_expenses e LEFT JOIN corrections c ON c.kind='EXPENSE' AND c.source_id=e.id WHERE "+filter+"(description LIKE :q ESCAPE '!' OR category LIKE :q ESCAPE '!' OR CAST(e.id AS CHAR) LIKE :q ESCAPE '!')","e.id DESC",Map.of("q",page.like()),page,"total");
     }
 }

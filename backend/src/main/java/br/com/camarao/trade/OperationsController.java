@@ -37,7 +37,7 @@ public class OperationsController {
     @PostMapping("/settlements") public Mono<Map<String,Long>> settlement(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody FinanceService.Payment payment,Principal actor) {
         return finance.payment(key,payment,actor.getName());
     }
-    @GetMapping("/expenses") public Mono<PageResult> expenses(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return finance.expenses(new PageQuery(page,size,q)); }
+    @GetMapping("/expenses") public Mono<PageResult> expenses(@RequestParam(defaultValue="ALL") String kind,@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="20") int size,@RequestParam(defaultValue="") String q) { return finance.expenses(new PageQuery(page,size,q),kind); }
     @PostMapping("/expenses") public Mono<Map<String,Long>> expense(@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody FinanceService.Expense expense,Principal actor) {
         return finance.expense(key,expense,actor.getName());
     }

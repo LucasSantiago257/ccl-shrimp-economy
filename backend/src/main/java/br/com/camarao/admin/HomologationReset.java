@@ -39,7 +39,8 @@ public class HomologationReset implements WebFilter {
         // This is deliberately a repeatable destructive reset, not a transactional financial correction.
         try(Connection connection=DriverManager.getConnection(url,user,password);Statement statement=connection.createStatement()){
             statement.execute("SET FOREIGN_KEY_CHECKS=0");
-            for(String table:new String[]{"allocation_reversals","correction_replacements","correction_stock","corrections","settlement_allocations","settlements","financial_titles","stock_movements","processing_batches","sale_items","purchase_items","sales","purchases","expenses","opening_reversals","opening_stock","opening_balances","period_closures","stock_balances","products","customers","suppliers","operation_requests","product_code_sequences"}) statement.execute("TRUNCATE TABLE `"+table+"`");
+            for(String table:new String[]{"allocation_reversals","correction_replacements","correction_stock","corrections","settlement_allocations","settlements","financial_titles","stock_movements","processing_batches","sale_items","purchase_items","sales","purchases","fixed_expense_occurrences","fixed_expense_rules","expenses","opening_reversals","opening_stock","opening_balances","period_closures","stock_balances","products","product_code_sequences"}) statement.execute("TRUNCATE TABLE `"+table+"`");
+            statement.execute("DELETE FROM operation_requests WHERE operation_type NOT IN ('CREATE_CUSTOMER','CREATE_SUPPLIER')");
             statement.execute("SET FOREIGN_KEY_CHECKS=1");
             statement.execute("INSERT INTO products(id,code,name,suggested_price,minimum_stock) VALUES(1,'CAM-001','Camarão',50,5)");
             statement.execute("INSERT INTO stock_balances(product_id) VALUES(1)");
@@ -63,9 +64,9 @@ class ResetController {
     ResetController(HomologationReset reset,ResetCommand command){this.reset=reset;this.command=command;}
     @GetMapping("/status") Map<String,Boolean> status(){return Map.of("resetEnabled",reset.enabled);}
     public record Request(String confirmation){}
-    @PostMapping("/reset") Mono<Void> reset(@RequestBody Request body){
+    @PostMapping("/clear-operations") Mono<Void> reset(@RequestBody Request body){
         if(!reset.enabled)throw Rules.missing("Recurso indisponível.");
-        Rules.require("APAGAR HOMOLOGACAO".equals(body.confirmation()),"Digite APAGAR HOMOLOGACAO para confirmar.");
+        Rules.require("LIMPAR OPERACAO".equals(body.confirmation()),"Digite LIMPAR OPERACAO para confirmar.");
         return Mono.defer(()->{
             if(!reset.resetting.compareAndSet(false,true))return Mono.error(Rules.conflict("Reset em andamento."));
             return command.run().doFinally(signal->reset.resetting.set(false));

@@ -216,7 +216,7 @@ Compras, vendas, perdas e implantação aceitam **caixas**, com peso padrão de 
 
 ## Limites desta entrega
 
-Em homologação, o **Perfil** oferece **KILL — Resetar homologação** quando `APP_ENVIRONMENT=homologation` e `APP_ALLOW_RESET=true`. Exige digitar `APAGAR HOMOLOGACAO`. Apaga os cadastros e dados operacionais, inclusive snapshots e bloqueios de fechamentos; mantém usuário/senha, conta financeira e configurações de infraestrutura, e recria Camarão com estoque zero. O fechamento automático continua ativo para os próximos testes. Não habilite essas variáveis em produção. O reset não é executado ao iniciar ou atualizar o ambiente.
+Em homologação, o **Perfil** oferece **Limpar dados operacionais** quando `APP_ENVIRONMENT=homologation` e `APP_ALLOW_RESET=true`. Exige digitar `LIMPAR OPERACAO`. Preserva os cadastros de clientes e fornecedores. Apaga os demais dados operacionais e agendamentos mensais, inclusive snapshots e bloqueios de fechamentos; mantém usuário/senha, conta financeira e configurações de infraestrutura, e recria Camarão com estoque zero. O fechamento automático continua ativo para os próximos testes. Não habilite essas variáveis em produção. O reset não é executado ao iniciar ou atualizar o ambiente.
 
 O reset exige uma única instância de backend de homologação. Durante a execução, novas requisições são recusadas temporariamente e o fechamento automático aguarda o bloqueio operacional. A conexão administrativa usa TRUNCATE sem alterar as proteções de imutabilidade do banco. Essa limpeza é destrutiva e não transacional: se houver interrupção, repita o reset para concluir. Não usar esse mecanismo como correção de lançamentos reais.
 
@@ -235,3 +235,12 @@ As correções da auditoria adicionam limite de 20 tentativas de login por orige
 - Ambiente de desenvolvimento local. Acesso por celular físico em rede e publicação exigem configuração de rede, HTTPS, cookies Secure e revisão operacional; não basta expor o MySQL.
 
 Veja [Saldo inicial e exportação compacta](docs/SALDOS_E_EXPORTACAO.md), [Arquitetura](docs/ARQUITETURA.md), [API](docs/API.md) e [Validação](docs/VALIDACAO.md).
+
+
+### Despesas fixas mensais
+
+Em **Despesas → Despesas fixas**, cadastre o valor mensal e o primeiro vencimento. No vencimento, o sistema registra a despesa no resultado e cria uma conta a pagar. Registre o pagamento no Financeiro quando o dinheiro sair. Um agendamento iniciado no dia 31 usa o último dia dos meses mais curtos e volta ao dia 31 quando disponível.
+
+Após uma interrupção ou um fechamento antecipado, as mensalidades pendentes entram no próximo dia aberto, com seus vencimentos originais. Encerrar um agendamento interrompe novas emissões e preserva as mensalidades já lançadas. O cancelamento de uma mensalidade corrige apenas aquele lançamento.
+
+Na atualização para V15, a consulta de despesas classifica todos os registros anteriores como variáveis. A migração acrescenta duas tabelas e uma visão ao MySQL. Antes de atualizar uma instância em uso, faça um backup e confirme sua restauração em um banco separado.
